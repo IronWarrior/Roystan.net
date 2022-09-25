@@ -1,0 +1,26 @@
+.button 
+{
+    background-color: $accent-color;
+    padding: 1em 1.25em;
+    font-size: 1em;
+    font-family: $sans-serif-font;
+    font-weight: 600;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    margin-top: 0.2em;
+    margin-bottom: 1em;
+    display: inline-block;
+}
+
+.button:hover 
+{
+	background-color:#333333;
+}
+
+.button-type
+{
+	font-weight: 400;
+	opacity: 0.8;
+	padding-left: 0.5em;
+}

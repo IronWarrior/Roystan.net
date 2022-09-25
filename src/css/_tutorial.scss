@@ -1,0 +1,527 @@
+main.tutorial
+{
+	padding: 0 1em;
+}
+
+@media (min-width: 768px)
+{
+	main.tutorial
+	{
+		max-width: 800px;
+	}
+}
+
+.tutorial-title
+{
+	margin-top: 2em;
+	margin-bottom: 1.5em;
+}
+
+.tutorial-title h3
+{
+	font-family: $serif-font;
+	font-size: 1.2em;
+	font-weight: 400;
+	margin-top: 0.7em;
+}
+
+@media (min-width: 768px)
+{
+	.tutorial-title
+	{
+		margin-top: 3em;
+		margin-bottom: 3em;
+	}
+}
+
+aside
+{
+	background-color: #eeeeee;
+	margin-bottom: 2em;
+	border-left: 10px solid #dddddd;
+}
+
+aside > div.aside-content
+{
+	padding: 0 30px;
+	padding-bottom: 2em;
+	display: none;
+}
+
+aside.expanded > div.aside-content
+{
+	display: block;
+}
+
+.aside-content > p
+{
+	margin-bottom: 1em;
+	font-size: 0.9em;
+}
+
+.aside-button
+{
+	padding: 30px;
+	cursor: pointer;
+}
+
+.aside-button > h4
+{
+	font-family: $sans-serif-font;
+	font-weight: 600;
+	color: #333333;
+	font-size: 0.9em;
+	display: block;
+	line-height: 1.7em;
+}
+
+.aside-content > img
+{
+	display: block;
+	width: 100%;
+	margin: 0 auto;
+	margin-top: 1.5em;
+	margin-bottom: 2em;
+	border-radius: 4px;
+}
+
+.aside-content > img.small
+{
+	width: 60%;
+}
+
+@media (min-width: 768px)
+{
+	aside
+	{
+		border-left: 20px solid #dddddd;
+	}
+
+	.aside-content > img
+	{
+		width: 70%;
+		margin-bottom: 2.5em;
+	}
+	
+	.aside-content > img.small
+	{
+		width: 150px;
+	}
+}
+
+code
+{
+	font-family: Monospace;
+	line-height: 1.6em;
+}
+
+pre
+{
+	white-space: pre-wrap;       /* css-3 */
+	white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+	white-space: -pre-wrap;      /* Opera 4-6 */
+	white-space: -o-pre-wrap;    /* Opera 7 */
+	word-wrap: break-word;       /* Internet Explorer 5.5+ */
+
+	color: #eeeeee;
+	margin-top: 2em;
+	margin-bottom: 2em;
+	background-color: #333;
+	padding: 1em 1em;
+	border-radius: 4px;
+	
+	font-size: 0.9em;
+}
+
+a.button
+{
+	color: white;
+}
+
+.figure-header-cc
+{
+	border-radius: 8px;
+	display: block;
+	width: 90%;
+	margin: 0 auto;
+	margin-bottom: 40px;
+	-webkit-box-shadow: 0px 9px 39px 1px rgba(0,0,0,0.48);
+	-moz-box-shadow: 0px 9px 39px 1px rgba(0,0,0,0.48);
+	box-shadow: 0px 9px 39px 1px rgba(0,0,0,0.48);
+}
+
+.header-image
+{
+	margin-top: 60px;
+}
+
+.tutorial-body
+{
+	margin-top: 1em;
+	margin-bottom: 2em;
+}
+
+.tutorial-duration
+{
+	margin-bottom: 2em;
+	opacity: 0.8;
+	height: 30px;
+	line-height: 30px;
+}
+
+.tutorial-stopwatch
+{
+	width: 30px;
+	height: 30px;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: left; 
+	background-image: url("/media/tutorials/stopwatch-icon.png");
+	display: block;
+	float: left;
+}
+
+.tutorial-duration > h4
+{
+	font-family: $sans-serif-font;
+	display: block;
+	font-weight: 400;
+	font-size: 1.2em;
+	float: left;
+	padding-top: 0.09em;
+	padding-left: 0.4em;
+}
+
+.tutorial-info
+{
+	background-color: rgba(0, 0, 0, 0.05);
+	padding: 1.2em 1.7em;
+	margin-bottom: 2em;
+	border-radius: 8px;
+}
+
+.tutorial-info > p
+{
+	margin: 0;
+	font-size: 1em;
+}
+
+.drop
+{
+	font-family: $serif-font;
+	font-weight: 600;
+	font-size: 1.3em;
+}
+
+@media (min-width: 768px)
+{
+	.tutorial-info > p
+	{
+		margin: 0;
+		font-size: 1em;
+	}
+	
+	.drop
+	{
+		font-size: 1.5em;
+	}
+}
+
+.note
+{
+	background-color: #eeeeee;
+	padding: 30px 30px 30px 30px;
+	margin-bottom: 3em;
+	border-left: 20px solid #dddddd;
+}
+
+.note h5
+{
+	font-family: $serif-font;
+	font-weight: 600;
+	font-size: 1.6em;
+	margin-bottom: 0.7em;
+}
+
+pre > .modified
+{
+	border: 1px dashed rgba(255,255,37,0.6);
+	padding: 0.1em 0.25em;
+	border-radius: 4px;
+	background:rgba(255,255,37,0.15);
+}
+
+pre > .removed
+{
+	border: 1px dashed rgba(255,139,139,0.6);
+	padding: 0.1em 0.25em;
+	border-radius: 4px;
+	background:rgba(255,12,12,0.4);
+	text-decoration: line-through;
+}
+
+.video-gfycat
+{
+	position:relative; 
+	padding-bottom: 56.25%; 
+	overflow:hidden; 	
+}
+
+.video-gfycat > iframe
+{
+	position:absolute;
+	top:0;
+	left:0; 
+	width:100%; 
+	height: calc(100% + 44px);
+}
+
+.figure-header
+{
+	display: block;
+	width: 90%;
+	margin: 0 auto;
+}
+
+.figure-header-shadowed
+{
+	margin-bottom: 3em;
+	border-radius: 8px;
+	-webkit-box-shadow: 0px 9px 39px 1px rgba(0,0,0,0.48);
+	-moz-box-shadow: 0px 9px 39px 1px rgba(0,0,0,0.48);
+	box-shadow: 0px 9px 39px 1px rgba(0,0,0,0.48);
+}
+
+.project-info
+{
+	display: flex;
+	border: 2px dashed rgba(0, 0, 0, 0.15);
+	background-color: rgba(0, 0, 0, 0.025);
+	padding: 1.2em 1.7em;
+	margin-top: 2em;
+	margin-bottom: 3em;
+	border-radius: 8px;
+}
+
+.project-info-icon
+{
+	width: 48px;
+	height: 48px;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center top 0px; 
+	background-image: url("/media/tutorials/stopwatch-icon.png");
+	margin: auto;
+	opacity: 0.5;
+}
+
+.project-info-note
+{
+	font-family: $sans-serif-font;
+	font-size: 1em;
+	line-height: 1.6em;
+}
+
+.figure
+{
+    width: 100%;
+    margin-top: 2em;
+    margin-bottom: 3em;
+}
+
+.figure > img, .figure > .container
+{
+	width: 100%;
+	display: block;
+	margin: 0 auto;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.figure > img.tiny {
+    width: 45%;
+}
+
+.figure > img.small
+{
+	width: 65%;
+}
+
+.figure > img.medium
+{
+	width: 75%;
+}
+
+.figure > img.wide
+{
+	width: 100%;
+}
+
+.figure > .figure-info
+{
+	font-family: $sans-serif-font;
+	font-size: 0.9em;
+	line-height: 1.5em;
+	color: #6d6d6d;
+	width: 100%;
+	margin: 0 auto;
+	margin-top: 1em;
+}
+
+@media (min-width: 768px)
+{
+	.figure > img, .figure > .container
+	{
+		width: 540px;
+	}
+
+    .figure > img.tiny
+    {
+        width: 160px;
+    }
+
+	.figure > img.small
+	{
+		width: 260px;
+	}
+
+	.figure > img.medium
+	{
+		width: 360px;
+	}
+	
+	.figure > img.wide
+	{
+		width: 100%;
+	}
+	
+	.figure > .figure-info
+	{
+		width: 80%;
+	}
+}
+
+.modified-inline
+{
+	border: 1px dashed rgba(179,179,37,1);
+	padding: 0.1em 0.25em;
+	border-radius: 4px;
+	background:rgba(255,255,37,0.15);
+}
+
+.cornflower
+{	
+	transition: all 0.2s;
+}
+
+.cornflower:hover
+{
+	color: #7fa6ff;
+	transition: all 0.25s;
+}
+
+.silhouette:hover
+{
+	text-shadow:
+    -1px -1px 0 #000,  
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000;
+	font-weight: 600;
+	color: white;
+}
+
+.patreon-info {
+	border-radius: 8px;
+	border: 2px dashed rgba(189, 44, 0, 0.15);
+	background-color: rgba(181, 64, 27, 0.08);
+	padding: 1.2em 1.7em;
+	margin-top: 2em;
+	margin-bottom: 3em;
+	border-radius: 8px;
+}
+
+.tip-info {
+    border-radius: 8px;
+    border: 2px dashed rgba(13, 109, 146, 0.2);
+    background-color: rgba(0, 141, 148, 0.04);
+    padding: 1.2em 1.7em;
+    margin-top: 2em;
+    margin-bottom: 2em;
+    border-radius: 8px;
+}
+
+.tip-info > p {
+    margin: 0;
+    font-size: 1em;
+}
+
+.toggle-gif {
+    cursor: pointer;
+    position: relative;
+}
+
+.toggle-gif > img {
+    width: 100%;
+}
+
+.toggle-gif.playing > .play-button {
+    display: none;
+}
+
+.toggle-gif > img:nth-last-child(2) {
+    display: block;
+}
+
+.toggle-gif > img:last-child {
+    display: none;
+}
+
+.toggle-gif.playing > img:nth-last-child(2) {
+    display: none;
+}
+
+.toggle-gif.playing > img:last-child {
+    display: block;
+}
+
+.play-button {
+    width: 60px;
+    height: 60px;
+    opacity: 1;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 10;
+    transform: translate(-50%, -50%);
+}
+
+.toggle-gif:hover > .play-button {
+    opacity: 1;
+    background-color: rgba(255,255,255,0.3);
+}
+
+.play-button > div {
+    width: 28px;
+    height: 28px;
+    border-style: solid;
+    border-width: 14px 0px 14px 28px;
+    border-color: transparent transparent transparent white;
+    position: absolute;
+    top: 24%;
+    left: 30%;
+}
+
+.toggle-gif:hover > .play-button.dark {
+    background-color: rgba(0,0,0,0.2);
+}
+
+.play-button.dark > div {
+	border-color: transparent transparent transparent rgba(0, 0, 0, 0.5);
+}
+
+.patreon-info > .button.patreon
+{
+	padding: 0.5em 1.55em;
+}

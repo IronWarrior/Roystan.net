@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Unity Tutorials and Portfolio - Roystan</title>
+	<link href="/css/style.css" rel="stylesheet"/>
+	<link href="https://fonts.googleapis.com/css?family=Zilla+Slab" rel="stylesheet"/>
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"/>
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-32x32.png"/>
+	<link rel="manifest" href="/manifest.json"/>
+	<meta name="Description" content="Erik Roystan is a programmer, designer, game developer, and educator who writes clear articles to teach complex topics."/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+	<meta property="og:title" content="Unity Tutorials and Portfolio at Roystan" />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://roystan.net" />
+	<meta property="og:image" content="https://roystan.net/media/portfolio/r-logo.png" />
+	<meta property="og:description" content="Erik Roystan is a programmer, designer, game developer, and author who writes clear articles to teach complex topics." />
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=UA-128293172-2"></script>
+	<script>
+	  window.dataLayer = window.dataLayer || [];
+	  function gtag(){dataLayer.push(arguments);}
+	  gtag('js', new Date());
+
+	  gtag('config', 'UA-128293172-2');
+	</script>
+</head>
+
+<body>
+	<nav>
+		<a href="/">Home</a>
+		<a href="/articles/">Articles</a>
+		<a href="/contact.html">Contact</a>
+		<a href="https://davigogame.com" id="davigo">Davigo</a>
+	</nav>
+	<main>
+		<header>
+			<div class="title-logo"></div>
+			<div class="social-links clearfix">
+				<a class="social-link" id="social-twitter" target="_blank" href="https://twitter.com/roystanhonks"></a>
+				<a class="social-link" id="social-youtube" target="_blank" href="https://www.youtube.com/channel/UCMt894M7mGO0e6ST1cYUGVQ"></a>
+				<a class="social-link" id="social-unity" target="_blank" href="https://forum.unity3d.com/members/iron-warrior.11581/"></a>	
+				<a class="social-link" id="social-reddit" target="_blank" href="https://www.reddit.com/user/IronWarriorU/"></a>							
+			</div>
+			<div class="title-text">
+				<p>Hi! My name is Roystan. I work as a programmer, designer and educator. My current project is <a href="https://www.davigogame.com/">DAVIGO, an asymmetrical VR vs. PC game</a>. It looks like this.</p>
+				<div class="davigo-preview">
+					<div class="controls"></div>
+					<div class="loading"></div>
+					<a class="video-link" href="https://www.youtube.com/watch?v=-mqBtNMdvTY" target="_blank"></a>
+					<video poster="/media/portfolio/davigo-poster.png" muted loop preload="metadata">			
+							<source src="/media/portfolio/Davigo.webm" type="video/webm" />
+							<source src="/media/portfolio/Davigo.mp4" type="video/mp4" />
+					</video>
+				</div>
+				<p>I also write <a href="/articles/">free and open-source tutorials</a> about game development using Unity. If you enjoy them, I have a <a href="https://www.patreon.com/roystan" target="_blank">Patreon</a>  you can support.</p>
+				<div class="patreon-home">
+					<a href="https://www.patreon.com/bePatron?u=10821388" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+				</div>
+			</div>
+		</header>
+		
+		<div class="gallery">
+			<div class="gallery-row clearfix">
+				<div class="gallery-col">
+					<div class="controls"></div>
+					<div class="loading"></div>
+					<a class="video-link" href="https://www.youtube.com/watch?v=0MExEp7L70Y" target="_blank"></a>
+					<video poster="/media/portfolio/p5-poster.png" muted loop preload="metadata">			
+							<source src="/media/portfolio/P5.webm" type="video/webm" />
+							<source src="/media/portfolio/P5.mp4" type="video/mp4"/>
+					</video>
+				</div>
+				<div class="gallery-col">
+					<div class="controls"></div>
+					<div class="loading"></div>
+					<video poster="/media/portfolio/PiratePakPoster.png" muted loop preload="metadata">	
+							<source src="/media/portfolio/Pirate.webm" type="video/webm"/>
+							<source src="/media/portfolio/Pirate.mp4" type="video/mp4"/>
+					</video>
+				</div>
+			</div>
+			<div class="gallery-row clearfix">
+				<div class="gallery-col">
+					<div class="controls"></div>
+					<div class="loading"></div>
+					<a class="video-link" href="https://vimeo.com/204722112" target="_blank"></a>
+					<video poster="/media/portfolio/MarioPoster.png" muted loop preload="metadata">			
+							<source src="/media/portfolio/Mario.webm" type="video/webm" />
+							<source src="/media/portfolio/Mario.mp4" type="video/mp4" />
+					</video>
+				</div>
+				<div class="gallery-col">
+					<div class="controls"></div>
+					<div class="loading"></div>
+					<a class="video-link" href="https://www.youtube.com/watch?v=DdDn8LmgcFY" target="_blank"></a>
+					<video poster="/media/portfolio/SundogPoster.png" muted loop preload="metadata">			
+							<source src="/media/portfolio/Sundog.webm" type="video/webm" />
+							<source src="/media/portfolio/Sundog.mp4" type="video/mp4"/>
+					</video>
+				</div>
+			</div>
+			<div class="gallery-row clearfix">
+				<div class="gallery-col">
+					<div class="controls"></div>
+					<div class="loading"></div>
+					<video poster="/media/portfolio/CampfirePoster.png" muted loop preload="metadata">			
+							<source src="/media/portfolio/Campfire.mp4" type="video/mp4" />
+					</video>
+				</div>
+				<div class="gallery-col">
+					<div class="controls controls-pink"></div>
+					<div class="loading"></div>
+					<a class="video-link" href="https://github.com/IronWarrior/UnityReplaySystem" target="_blank"></a>
+					<video poster="/media/portfolio/tank-poster.png" muted loop preload="metadata">			
+							<source src="/media/portfolio/Tank.webm" type="video/webm" />
+							<source src="/media/portfolio/Tank.mp4" type="video/mp4" />
+					</video>
+				</div>
+			</div>
+			<div class="gallery-row clearfix">
+				<div class="gallery-col">
+					<div class="controls controls-pink"></div>
+					<div class="loading"></div>
+					<a class="video-link" href="https://www.youtube.com/watch?v=m52zImwuh4I" target="_blank"></a>
+					<video poster="/media/portfolio/p3-poster.png" muted loop preload="metadata">			
+							<source src="/media/portfolio/P3.webm" type="video/webm" />
+							<source src="/media/portfolio/P3.mp4" type="video/mp4" />
+					</video>
+				</div>
+				<div class="gallery-col">
+					<div class="controls"></div>
+					<div class="loading"></div>
+					<video poster="/media/portfolio/veggie-poster.png" muted loop preload="metadata">			
+							<source src="/media/portfolio/Veggie.webm" type="video/webm" />
+							<source src="/media/portfolio/Veggie.mp4" type="video/mp4" />
+					</video>
+				</div>
+			</div>
+			<div class="gallery-row clearfix">
+				<div class="gallery-col">
+					<div class="controls"></div>
+					<div class="loading"></div>
+					<a class="video-link" href="https://github.com/IronWarrior/ProjectileShooting" target="_blank"></a>
+					<video poster="/media/portfolio/cannon-poster.png" muted loop preload="metadata">			
+							<source src="/media/portfolio/Cannon.webm" type="video/webm" />
+							<source src="/media/portfolio/Cannon.mp4" type="video/mp4" />
+					</video>
+				</div>
+			</div>
+		</div>
+		
+		<footer></footer>
+	</main>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script type="text/javascript" src="/js/scripts.js"></script>
+</body>
+</html>

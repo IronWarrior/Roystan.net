@@ -1,0 +1,40 @@
+---
+layout: layout.njk
+title: About - Roystan
+---
+<main class="contact">
+{% md %}
+## About me
+Hi! My name is Roystan. I work as a programmer, game developer and educator. I'm also a pretty big fan of geese, though I do acknowledge that they can be a public nuisance.
+
+{% endmd %}
+<div class="figure">
+	<script>
+		var images = ['gosling', 'knight', 'liege', 'noble'];
+	
+		function getRandomInt(min, max) {
+		  min = Math.ceil(min);
+		  max = Math.floor(max);
+		  var rand = Math.random();
+		  return Math.floor(rand * (max - min)) + min;
+		}
+
+		document.write(`<img src="/media/common/${images[getRandomInt(0, 4)]}.gif" class="small gosling"></img>`)
+	</script>
+	<noscript>
+		<img src="/media/common/gosling.gif" class="small gosling"></img>
+	</noscript>
+</div>
+{% md %}
+
+You can contact me at roystanhonks@gmail.com. Sometimes I receive a lot of messages, but I'll try and get back to you as soon as I can!
+
+## About this site
+
+This website is built using the [Eleventy](https://www.11ty.dev/) static site generator and deployed to [Netlify](https://www.netlify.com/). I do all my web development with [Notepad++](https://notepad-plus-plus.org/downloads/), using [this plugin](https://github.com/Edditoria/markdown-plus-plus) for Markdown syntax highlighting. 
+
+The source code for this site is available below.
+
+{{ macro.repo('#')}}
+{% endmd %}
+</main>

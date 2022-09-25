@@ -1,0 +1,19 @@
+main.contact
+{
+	max-width: 700px;
+	padding: 0 1em;
+}
+
+@media (min-width: 768px)
+{
+	main.contact
+	{
+		max-width: 700px;
+		margin-top: 4em;
+	}
+}
+
+.gosling
+{
+	transform: translate(-17%, 2%);
+}

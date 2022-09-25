@@ -1,0 +1,303 @@
+---
+layout: article.njk
+title: Unity Toon Shader Tutorial
+name: Toon Shader
+date: 2019-01-14
+thumbnail: /media/tutorials/toon-shader-demo.png
+tool: Unity engine
+toolSuffix: 2018.3
+duration: 40
+description: Learn to write a toon shader for Unity engine with specular reflections, rim lighting and shadow casting.
+ogTitle: Unity Grass Geometry Shader Tutorial at Roystan
+---
+
+
+			<img src="/media/tutorials/toon-shader-demo.png" alt="Sphere in Unity engine with toon shading." class="figure-header-cc header-image"></img>
+			<div class="tutorial-info">
+				<p><span class="drop">You will learn</span> to write a lit toon shader from scratch. The shader will be lit by a single directional light, and cast and receive shadows.</p>
+			</div>
+			<p><strong>Toon shading</strong> (often called <em>cel shading</em>) is a rendering style designed to make 3D surfaces emulate 2D, flat surfaces. This style entered the mainstream with games like <a href="#">Jet Set Radio</a> and <a href="#">The Wind Waker</a>.</p>
+			<p>This tutorial will describe step-by-step how to write a toon shader in Unity. The shader will receive light from a <strong>single directional source</strong>, and have <strong>specular reflections</strong> and <strong>rim lighting</strong>. We will use the art style of <a href="#">The Legend of Zelda: Breath of the Wild</a> as our reference, although we will not implement some of the more complex rendering techniques used in the game.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-botw.png" alt="Analysis of The Legend of Zelda: Breath of the Wild's toon shading, indicating the specular, rim, and lighting components"></img>
+				<div class="figure-info"><em>Breath of the Wild</em> divides surfaces into two bands of lightness, adding rim and specular on top. The rim is only applied to surfaces illuminated by the main directional light.</div>
+			</div>
+			<div class="project-info clearfix">
+				<div class="project-info-note"><strong>The completed project</strong> is provided at the end of the article. Note that it also contains a large amount of comments in the created shader file to aid understanding.</div>
+			</div>
+			<h3>Prerequisites</h3>
+			<p>To complete this tutorial, you will need a working knowledge of Unity engine, and a basic understanding of shader syntax and functionality.</p>
+			<a class="button" href="https://github.com/IronWarrior/UnityToonShader/archive/skeleton.zip">
+				<span>Download starter project</span>
+				<span class="button-type">.zip</span>
+			</a>
+			<div class="patreon-info">
+				<p>These tutorials are made possible, and kept <strong>free</strong> and <strong>open source</strong>, by your support. If you enjoy them, please consider becoming my <a href="https://www.patreon.com/bePatron?u=10821388" target="_blank">patron through Patreon</a>.</p> 
+				<a href="https://www.patreon.com/bePatron?u=10821388" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+			</div>
+			<h2>Getting started</h2>
+			<p>Download the starter project provided above and open it in the Unity editor. Open the <code>Main</code> scene, and open the <code>Toon</code> shader in your preferred code editor.</p>
+			<p>This file contains a simple shader that outputs a sampled texture, tinted by a color (with the default color set to <span class="cornflower">cornflower blue</span>). We will build off this file to create our toon shader.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-start.png" alt="Blue unlit sphere in Unity engine." class="medium"></img>
+			</div>
+			<h2>1. Directional lighting</h2>
+			<p>When writing shaders in Unity that interact with lighting it is common to use <a href="https://docs.unity3d.com/Manual/SL-SurfaceShaders.html" target="_blank">Surface Shaders</a>. Surface shaders use code generation to automate the object's interaction with lights and global illumination. However, as our shader will only interact with a single directional light, it will <strong>not</strong> be necessary to use surface shaders.</p>
+			<p>We will set up our shader to receive lighting data. Add the following code at the top of the <code>Pass</code>, just after its opening curly brace.</p>
+<pre><code class="language-glsl">Tags
+{
+	"LightMode" = "ForwardBase"
+	"PassFlags" = "OnlyDirectional"
+}</code></pre>
+			<p>The first line requests some lighting data to be passed into our shader, while the second line further requests to restrict this data to only the main directional light. You can <a href="https://docs.unity3d.com/Manual/SL-PassTags.html" target="_blank">read more about Pass tags here</a>.</p>
+			<p>To calculate our lighting, we will use a common shading model called <a href="https://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_shading_model" target="_blank">Blinn-Phong</a>, and apply some additional filters to give it a toon look. The first step is to calculate the amount of light received by the surface from the main directional light. The amount of light is proportional to the direction, or <em>normal</em> of the surface with respect to the light direction.</p>
+			<div class="figure">
+				<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Blinn_Vectors.svg/1920px-Blinn_Vectors.svg.png"></img>
+				<div class="figure-info"><strong>Blinn-Phong</strong> shading vectors, where <strong>L</strong> is the vector to the light source and <strong>N</strong> is the normal of the surface.</div>
+			</div>
+			<p>We'll need access to the object's normal data within our shader. Add the following code.</p>
+<pre><code class="language-glsl">// Inside the appdata struct.
+float3 normal : NORMAL;
+
+…
+
+// Inside the v2f struct.
+float3 worldNormal : NORMAL;</code></pre>
+			<p>The normals in <code>appdata</code> are populated automatically, while values in <code>v2f</code> must be manually populated in the vertex shader. As well, we want to transform the normal from <em>object space</em> to <em>world space</em>, as the light's direction is provided in world space. Add the following line to the vertex shader.</p>
+<pre><code class="language-glsl">o.worldNormal = UnityObjectToWorldNormal(v.normal);</code></pre>
+			<p>With the world normal now available in the fragment shader, we can compare it to the light's direction using the <a href="https://en.wikipedia.org/wiki/Dot_product" target="_blank">Dot Product</a>.</p>
+			<div class="figure">
+				<img src="/media/tutorials/DotProductVisualization.gif" alt="Displaying dot product and angle between two vectors, one animated rotating 360 degrees" class="medium"></img>
+			</div>
+			<p>The dot product takes in two vectors (of any length) and returns a single number. When the vectors are parallel in the same direction and are <em>unit vectors</em> (vectors of length 1), this number is 1. When they are perpendicular, it returns 0. As you move a vector away from parallel—towards perpendicular—the dot product result will move from 1 to 0 <strong>non-linearly</strong>. Note that when the angle between the vectors is <strong>greater than 90</strong>, the dot product will be negative.</p>
+			<p>Add the following to the fragment shader. Note that existing code that is <strong>modified</strong> will be <span class="modified-inline">highlighted in yellow</span>. New code is <em>not</em> highlighted.</p>
+<pre><code class="language-glsl">// At the top of the fragment shader.
+float3 normal = normalize(i.worldNormal);
+float NdotL = dot(_WorldSpaceLightPos0, normal);
+
+…
+
+// Modify the existing return line.
+return _Color * sample * </code><span class="modified"><code>NdotL;</code></span></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-lit.png" alt="Blue sphere lit with Blinn-Phong in Unity engine." class="medium"></img>
+			</div>
+			<p>This has rendered out a realistic style of illumination. To modify it to be toon-like, we will divide the lighting into two bands: light and dark.</p>
+<pre><code class="language-glsl">// Below the NdotL declaration.
+float lightIntensity = NdotL > 0 ? 1 : 0;
+
+…
+
+</code>return _Color * sample * </code><span class="modified"><code>lightIntensity;</code></span></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-lit-toon.png" alt="Blue sphere lit with toon style lighting in Unity engine." class="medium"></img>
+			</div>
+			<aside>
+				<div class="aside-button">
+					<h4>What if we wanted more than two discrete bands of shading?</h4>
+				</div>
+				<div class="aside-content">
+					<p>Right now our line of code above using the <a href="https://en.wikipedia.org/wiki/%3F:" target="_blank">ternary operator</a> is a <a href="https://en.wikipedia.org/wiki/Step_function" target="_blank">step function</a> with two steps, light and dark. To render more than two bands of shading, we will need a function with more than two steps. The simplest way to implement this is with a <strong>ramp texture</strong>.</p>
+					<img src="/media/tutorials/ramp-texture.png"></img>
+					<p>We then sample the ramp texture with <code>NdotL</code> transformed to a UV coordinate that maps to the ramp, lightest to darkest.</p>
+					<pre><code class="language-glsl">float2 uv = float2(1 - (NdotL * 0.5 + 0.5), 0.5);</code></pre>
+					<p><code>NdotL</code> is in the -1...1 range, so we transform it to be 0...1, and invert it so that the most illuminated surfaces map to the left of the texture, and the darkest to the right.</p>
+					<img src="/media/tutorials/toon-shader-ramp.png"></img>
+				</div>
+			</aside>
+			<h2>2. Ambient light</h2>
+			<p>This looks good, but the dark side is <em>too</em> dark; right now it is completely black. Also, the edge between dark and light looks a bit sharp, but we'll deal with that later. For now, we will add <strong>ambient light</strong>.</p>
+			<p><strong>Ambient light</strong> represents light that bounces off the surfaces of objects in the area and is scattered in the atmosphere. We will model it as a light that affects all surfaces equally and is additive to the main directional light.</p>
+<pre><code class="language-glsl">// Add as a new property.
+[HDR]
+_AmbientColor("Ambient Color", Color) = (0.4,0.4,0.4,1)
+
+…
+
+// Matching variable, add above the fragment shader.
+float4 _AmbientColor;
+
+…
+
+</code>return _Color * sample * </code><span class="modified"><code>(_AmbientColor + lightIntensity);</code></span></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-ambient.png" alt="Blue sphere lit with toon style directional and ambient lighting in Unity engine." class="medium"></img>
+			</div>
+			<p>You'll notice that modifying the intensity or color of the <code>Directional Light</code> in the scene does not affect our shader. We will add some code to include this in our lighting calculations.</p>
+			<aside>
+				<div class="aside-button">
+					<h4>What does [HDR] mean above the _AmbientColor property?</h4>
+				</div>
+				<div class="aside-content">
+					<p>This is called a property <strong>attribute</strong>. Colors normally have their RGB values set between 0 and 1; The <code>[HDR]</code> attribute specifies that this color property can have its values set beyond that. While the screen cannot render colors outside the 0...1 range, the values can be used for certain kinds of rendering effects, like bloom or <a href="https://en.wikipedia.org/wiki/Tone_mapping" target="_blank">tone mapping</a>.</p>
+					<p>When it comes to defining colors that represent lights, I like to allow them to extend to the HDR range, just like any other light in Unity can.</p>
+				</div>
+			</aside>
+<pre><code class="language-glsl">// Add below the existing #include "UnityCG.cginc"
+#include "Lighting.cginc"
+
+…
+
+// Add below the lightIntensity declaration.
+float4 light = lightIntensity * _LightColor0;
+
+…
+
+return _Color * sample * (_AmbientColor + </code><span class="modified"><code>light</code></span><code>);</code></pre>
+			<p>We multiply our existing <code>lightIntensity</code> value and store it in a <code class="variable">float4</code>, so that we include the light's color in our calculation. <code>_LightColor0</code> is the color of the main directional light. It is a <code class="variable">fixed4</code> declared in the <code>Lighting.cginc</code> file, so we include the file above to make use of the value.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-lightcolor.gif" class="medium"></img>
+			</div>
+			<p>Before going further, we'll soften the edge between light and dark to remove the jaggedness. Right now, the transition from light to dark is immediate and occurs over a single pixel. Instead, we'll smoothly blend the value from one to zero, using the <a href="https://en.wikipedia.org/wiki/Smoothstep" target="_blank">smoothstep</a> function.</p>
+			<p><code>smoothstep</code> takes in three values: a <em>lower bound</em>, an <em>upper bound</em> and a value expected to be between these two bounds. <code>smoothstep</code> returns a value between 0 and 1 based on how far this third value is between the bounds. (If it is outside the lower or upper bound, <code>smoothstep</code> returns a 0 or 1, respectively).</p>
+			<div class="figure">
+				<img src="/media/tutorials/smoothstep-lerp-comparison.png"></img>
+				<div class="figure-info">Comparison between <strong>smoothstep</strong> (left) and a linear function (right). The values are mapped to the greyscale background, as well as the curves in red.</div>
+			</div>
+			<p><code>smoothstep</code> is <strong>not</strong> linear: as the value moves from 0 to 0.5, it accelerates, and as it moves from 0.5 to 1, it decelerates. This makes it ideal for smoothly blending values, which is how we'll use it to blend our light intensity value.</p>
+<pre><code class="language-glsl">float lightIntensity = </code><span class="modified"><code>smoothstep(0, 0.01, NdotL);</code></span></pre>
+			<p>Our lower and upper bounds, 0 and 0.01, are very close together—this helps maintain a relatively sharp, toony edge. When <code>NdotL</code> is above 0.01 or below 0 it returns one and zero like before, respectively. However, in between that range it will smoothly blend between 0 and 1.</p>
+			<h2>3. Specular reflection</h2>
+			<p><a href="https://en.wikipedia.org/wiki/Specular_reflection" target="_blank">Specular reflection</a> models the individual, distinct reflections made by light sources. This reflection is <strong>view dependent</strong>, in that it is affected by the angle that the surface is viewed at. We will calculate the <em>world view direction</em> in the vertex shader and pass it into the fragment shader. This is the direction from the current vertex towards the camera.</p>
+<pre><code class="language-glsl">// Add to the v2f struct.
+float3 viewDir : TEXCOORD1;
+
+…
+
+// Add to the vertex shader.
+o.viewDir = WorldSpaceViewDir(v.vertex);</code></pre>
+			<p>We'll now implement the specular component of Blinn-Phong. This calculation takes in two properties from the surface, a <em>specular color</em> that tints the reflection, and a <em>glossiness</em> that controls the size of the reflection.</p>
+<pre><code class="language-glsl">// Add as new properties.			
+[HDR]
+_SpecularColor("Specular Color", Color) = (0.9,0.9,0.9,1)
+_Glossiness("Glossiness", Float) = 32
+
+…
+
+// Matching variables.
+float _Glossiness;
+float4 _SpecularColor;</code></pre>
+			<p>The strength of the specular reflection is defined in Blinn-Phong as the dot product between the normal of the surface and the <em>half vector</em>. The <em>half vector</em> is a vector between the viewing direction and the light source; we can obtain this by summing those two vectors and normalizing the result.</p>
+<pre><code class="language-glsl">// Add to the fragment shader, above the line sampling _MainTex.
+float3 viewDir = normalize(i.viewDir);
+
+float3 halfVector = normalize(_WorldSpaceLightPos0 + viewDir);
+float NdotH = dot(normal, halfVector);
+
+float specularIntensity = pow(NdotH * lightIntensity, _Glossiness * _Glossiness);
+
+…
+
+return _Color * sample * (_AmbientColor + light + </code><span class="modified"><code>specularIntensity</code></span><code>);</code></pre>
+			<p>We control the size of the specular reflection using the <code>pow</code> function. We multiply <code>NdotH</code> by <code>lightIntensity</code> to ensure that the reflection is only drawn when the surface is lit. Note that <code>_Glossiness</code> is multiplied by itself to allow smaller values in the material editor to have a larger effect, and make it easier to work with the shader.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-spec.png" alt="Blue sphere lit with toon style directional, ambient and specular lighting in Unity engine." class="medium"></img>
+			</div>
+			<p>Once again we will use <code>smoothstep</code> to toonify the reflection, and multiply the final output by the <code>_SpecularColor</code>.</p>
+<pre><code class="language-glsl">// Add below the specularIntensity declaration.
+float specularIntensitySmooth = smoothstep(0.005, 0.01, specularIntensity);
+float4 specular = specularIntensitySmooth * _SpecularColor;
+
+…
+
+return _Color * sample * (_AmbientColor + light + </code><span class="modified"><code>specular</code></span><code>);</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-spec-toon.png" alt="Blue sphere lit with toon style directional, ambient and specular lighting in Unity engine." class="medium"></img>
+			</div>
+			<h2>4. Rim lighting</h2>
+			<p>Rim lighting is the addition of illumination to the edges of an object to simulate reflected light or backlighting. It is especially useful for toon shaders to help the object's <span class="silhouette">silhouette</span> stand out among the flat shaded surfaces.</p>
+			<p>The "rim" of an object will be defined as surfaces that are facing <em>away</em> from the camera. We will therefore calculate the rim by taking the dot product of the normal and the view direction, and <em>inverting</em> it.</p>
+			
+<pre><code class="language-glsl">// In the fragment shader, below the line declaring specular.
+float4 rimDot = 1 - dot(viewDir, normal);
+
+…
+
+return _Color * sample * (_AmbientColor + light + specular + </code><span class="modified"><code>rimDot</code></span><code>);</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-rim.png" alt="Blue sphere with rim lighting in Unity engine." class="medium"></img>
+			</div>
+			<p>Once again, we'll toonify the effect by thresholding the value with <code>smoothstep</code>.</p>
+<pre><code class="language-glsl">// Add as new properties.
+[HDR]
+_RimColor("Rim Color", Color) = (1,1,1,1)
+_RimAmount("Rim Amount", Range(0, 1)) = 0.716
+
+…
+
+// Matching variables.
+float4 _RimColor;
+float _RimAmount;
+
+…
+
+// Add below the line declaring rimDot.
+float rimIntensity = smoothstep(_RimAmount - 0.01, _RimAmount + 0.01, rimDot);
+float4 rim = rimIntensity * _RimColor;
+
+…
+
+return _Color * sample * (_AmbientColor + light + specular + </code><span class="modified"><code>rim</code></span><code>);</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-rim-toon.png" alt="Blue sphere with toon rim lighting in Unity engine." class="medium"></img>
+			</div>
+			<p>With the rim being drawn around the entire object, it tends to resemble an outline more than a lighting effect. We'll modify it to only appear on the <strong>illuminated</strong> surfaces of the object.</p>
+<pre><code class="language-glsl">// Add above the existing rimIntensity declaration, replacing it.
+float rimIntensity = rimDot * NdotL;
+</code><span class="modified"> </code></span><code> rimIntensity = smoothstep(_RimAmount - 0.01, _RimAmount + 0.01, </code><span class="modified"><code>rimIntensity</code></span><code>);</code></pre>
+			<p>This is better, but it would be useful to be able to control how far the rim extends along the lit surface. We'll use the <code>pow</code> function to scale the rim.</p>
+<pre><code class="language-glsl">// Add as a new property.
+_RimThreshold("Rim Threshold", Range(0, 1)) = 0.1
+
+…
+
+// Matching variable.
+float _RimThreshold;
+
+…
+
+float rimIntensity = rimDot * </code><span class="modified"><code>pow(NdotL, _RimThreshold);</code></span></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-rim-threshold.png" alt="Blue sphere with single side rim lighting in Unity engine." class="medium"></img>
+			</div>
+			<h2>5. Shadows</h2>
+			<p>As a final step, we will add the ability for our shader to <strong>cast</strong> and <strong>receive</strong> shadows. Shadow casting is very simple. Add the following line of code below the <em>entire</em> <code>Pass</code> (outside the curly braces).</p>
+<pre><code class="language-glsl">// Insert just after the closing curly brace of the existing Pass.
+UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-shadow.png" alt="Blue sphere with toon shading casting a shadow in Unity engine." class="medium"></img>
+			</div>
+			<p><code>UsePass</code> grabs a pass from a different shader and inserts it into our shader. In this case, we are adding a pass that is used by Unity during the shadow casting step of the rendering process.</p>
+			<p>In order to receive shadows, we will need to know in the fragment shader whether a surface is in a shadow or not, and factor that in to our illumination calculation. To sample the shadow map cast by a light, we'll need to transfer texture coordinates from the vertex shader to the fragment shader.</p>
+<pre><code class="language-glsl">// As a new include, below the existing ones.
+#include "AutoLight.cginc"
+
+…
+
+// Add to the v2f struct.
+SHADOW_COORDS(2)
+
+…
+
+// Add to the vertex shader.
+TRANSFER_SHADOW(o)</code></pre>
+			<p>We include <code>Autolight.cginc</code>, a file that contains several macros we will use to sample shadows. <code>SHADOW_COORDS(2)</code> generates a 4-dimensional value with varying precision (depending on the target platform) and assigns it to the <code>TEXCOORD</code> semantic at the provided index (in our case, 2).</p>
+			<p><code>TRANSFER_SHADOW</code> transforms the input vertex's space to the shadow map's space, and then stores it in the <code>SHADOW_COORD</code> we declared.</p>
+			<p>Before we can sample the shadow map, however, we need to ensure our shader is set up to handle two different lighting cases: when the main directional light <strong>does</strong> and <strong>does not</strong> cast shadows. Unity will help us handle these two configurations by compiled multiple <em>variants</em> of this shader for each use case. You can <a href="https://docs.unity3d.com/Manual/SL-MultipleProgramVariants.html">read more about shader variants here</a>. We will use a built-in shortcut to compile our variants. Add the following line of code just below the <code>#pragma fragment frag</code> line.</p>
+<pre><code class="language-glsl">#pragma multi_compile_fwdbase</code></pre>
+			<p>This shortcut instructs Unity to compile all variants necessary for forward base rendering. We can now sample the value in the shadow map, and apply it to our lighting calculation.</p>
+<pre><code class="language-glsl">// In the fragment shader, above the existing lightIntensity declaration.
+float shadow = SHADOW_ATTENUATION(i);
+
+float lightIntensity = smoothstep(0, 0.01, NdotL * </code><span class="modified"><code>shadow</code></span><code>);</code></pre>
+			<p><code>SHADOW_ATTENUATION</code> is a macro that returns a value between 0 and 1, where 0 indicates no shadow and 1 is fully shadowed. We multiply <code>NdotL</code> by this value, as it is the variable that stores how much light we received from the main directional light.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-shader-receive-shadow.png" alt="Blue sphere with toon shading receiving a shadow in Unity engine." class="medium"></img>
+			</div>
+			<h2>Conclusion</h2>
+			<p>Toon shaders come in a wide variety of graphical styles, but achieving the effect usually centers around taking a standard lighting setup (as we did with Blinn-Phong) and applying a step function to it. In fact, when normals and lighting data is available it can be done as a post process effect. An example of this can be found in <a href="https://wiki.unrealengine.com/Cel_Shading_Post_Process" target="_blank">this tutorial for Unreal Engine 4</a>.</p>
+			<a class="button" href="https://github.com/IronWarrior/UnityToonShader" target="_blank">
+				<span>View source</span>
+				<span class="button-type">GitHub repository</span>
+			</a>
+			

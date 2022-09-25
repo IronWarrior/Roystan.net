@@ -1,0 +1,242 @@
+---
+layout: article.njk
+title: Unity 2D Character Controller Tutorial
+name: Simple 2D Character Controller
+date: 2018-12-11
+thumbnail: /media/tutorials/character-controller-demo.gif
+tool: Unity engine
+toolSuffix: 2019.1
+duration: 25
+description: Learn to build a simple 2D platformer controller with tight controls that can run and jump.
+ogTitle: Unity 2D Character Controller Tutorial at Roystan
+---
+
+<img src="/media/tutorials/character-controller-demo.gif" alt="2D box character jumps between platforms" class="figure-header-cc header-image"></img>
+
+{{ macro.articleInfo('to build a 2D character controller for a platformer game using custom physics—no rigidbodies or forces') }}
+{% md %}
+
+At the heart of every great action or platforming game is a great character controller. Character controllers are responsible for controlling the physics of the character—how they move and interact with the world, and how the world interacts with them.
+
+Unity does not come packaged with a 2D character controller. This article will demonstrate an implementation of a character controller for a 2D platformer. This controller will handle **movement** and **jumping**. To keep it simple, it *will not* handle sloped surfaces; however, the implementation is extensible enough to be adapted to any design.
+
+{{ macro.projectInfo() }}
+
+### Prerequisites
+
+To complete this tutorial, you will need a working knowledge of Unity engine and C#.
+
+{{ macro.starterProject('https://github.com/IronWarrior/2DCharacterControllerTutorial/archive/skeleton_project.zip') }}
+{{ macro.patreonArticlePrompt()}}
+
+## Getting started
+
+Download the starter project provided above and open it in the Unity editor. We will build off this project to implement our character controller. Open the `Main` scene (located at the project root), and open the `CharacterController2D` script in your preferred code editor.
+
+Inside `CharacterController2D`  there are already a number of private fields exposed to the inspector. As well, there is a <code class="class">Vector2</code> to keep track of our controller's velocity, and a field that references a <code class="class">BoxCollider</code>. Most 2D platformer games either use a box or a capsule shape; the shape of our controller will be a box.
+
+{% endmd %}
+{% aside "Why choose a box over a capsule shape?" %}
+	<p>There is no one correct choice, but boxes can offer the player a more predictable collision response to their actions. By having a flat bottom, players can more easily guess how far they can edge out over cliffs before falling.</p>
+	<img src="/media/tutorials/shape-diagram.png"></img>
+	<p>One major downside of a box shape is that the controller can catch on the edges of surfaces that the player intended to pass by. Some games—especially top-down ones—resolve this by using a rounded rectangle shape.</p>
+{% endaside %}
+{% md %}
+
+## 1. Movement
+
+Objects in Unity are moved primarily in two different ways: either by modifying the position of a transform directly or by applying a force to an object with a rigidbody and allowing Unity's physics system to decide how that object should move. We will be using the former technique to move our object around. This gives us very fine control over exactly how the controller will move.
+
+{% endmd %}
+{% aside "Why not use rigidbodies and forces?" %}
+	<p>Unity comes packaged with two physics engines: <a href="https://developer.nvidia.com/gameworks-physx-overview" target="_blank">PhysX</a> for 3D, and <a href="https://box2d.org/" target="_blank">Box2D</a> for 2D. Both of these extensively support rigidbodies. So why not use them for character controllers?</p>
+	<p>Rigidbodies behave very similarly to the real world objects they represent.  Box rigidbodies will excel at representing a wooden crate, cylinder rigidbodies as a an oil drum, and so on. Using constraints and joints, they can be used to model more complex objects, like a multi-limb robot.</p>
+	<img src="/media/tutorials/rigidbody-demo.gif"></img>
+	<p>However, something like a capsule rigidbody would be poor at representing an object capable of very complex actions, like a character controller. Characters often need to be able to run, slide, crouch, climb—all possibly with different acceleration and friction values dependant on their current state, or the surface they are interacting with. This is a lot to ask from a capsule-shaped object that is designed to react to the world in the way a real-world capsule would.</p>
+	<p>By instead directly modifying the position of our controller, we are able to very finely tune exactly how it interacts with the world, which is essential to crafting a game that feels and plays fluidly.</p>
+{% endaside %}
+{% md %}
+
+Add the following line of code in the Update method. This will translate the controller by `velocity` every frame, multiplied by `deltaTime` to ensure our game is framerate independent
+
+```cs
+transform.Translate(velocity * Time.deltaTime);
+```
+
+Our velocity isn't being modified yet, so our controller won't move. Let's change that by adding some horizontal velocity when the left or right keys are pressed. Add the following at the top of the `Update` method.
+
+```cs
+float moveInput = Input.GetAxisRaw("Horizontal");
+velocity.x = Mathf.MoveTowards(velocity.x, speed * moveInput, walkAcceleration * Time.deltaTime);
+```
+
+<a href="https://docs.unity3d.com/ScriptReference/Mathf.MoveTowards.html" target="_blank">Mathf.MoveTowards</a> is being used to move our current x velocity value to its target, our controller's speed (in the direction of our sampled input).
+Note that when no keys are being pressed, `moveInput` will be zero, causing our controller to slow to a stop. This is fine, but we might want to have the deceleration rate different than our `walkAcceleration`. We can handle this by checking to see if moveInput has a non-zero value. Replace the line modifying `velocity.x` with the following `if` statement.
+
+```cs
+if (moveInput != 0)
+{
+	velocity.x = Mathf.MoveTowards(velocity.x, speed * moveInput, walkAcceleration * Time.deltaTime);
+}
+else
+{
+	velocity.x = Mathf.MoveTowards(velocity.x, 0, groundDeceleration * Time.deltaTime);
+}
+```
+
+## 2. Collision
+
+The controller's side to side movement is working great, but it's currently able to pass through walls. This is happening due to our decision to use `Transform.Translate` to move around. This method tells Unity to move a transform, but **does not** tell it to handle collision *detection* or *resolution*.
+
+### 2.1 Detection
+
+We'll start with detection. Our goal is to find all colliders our controller is currently touching. We should do this *after* we have translated our controller to ensure no further movement will occur after we resolve collisions. Unity provides a series of <a href="https://docs.unity3d.com/ScriptReference/Physics2D.html" target="_blank">Physics2D overlap functions</a> to help detect intersections. We'll use <a href="https://docs.unity3d.com/ScriptReference/Physics2D.OverlapBox.html" target="_blank">OverlapBox</a>. Insert the following code at the bottom of `Update`.
+
+```cs
+Collider2D[] hits = Physics2D.OverlapBoxAll(transform.position, boxCollider.size, 0);
+```
+
+This will give us an array of all colliders that are intersected by the box we defined, which is the same size as our <code class="class">BoxCollider</code> and at the same position. Note that because of this, the array will also contain our own <code class="class">BoxCollider</code>.
+
+### 2.1 Resolution
+
+At the end of collision resolution, we want our controller to be no longer intersecting any other colliders. To accomplish this, we will iterate over every collider we intersected, and push the controller out of each offending collider in turn.
+
+The main problem is to decide which direction, and how far, we need to translate our controller to depenetrate from each collider. Ideally, we should move it *the minimum distance required to be no longer touching the other collider.* Unity provides a method to find that distance for us, <a href="https://docs.unity3d.com/ScriptReference/Collider2D.Distance.html" target="_blank">Collider2D.Distance</a>. Insert the following code at the end of `Update</code>.
+
+```cs
+foreach (Collider2D hit in hits)
+{
+	if (hit == boxCollider)
+	continue;
+
+	ColliderDistance2D colliderDistance = hit.Distance(boxCollider);
+
+	if (colliderDistance.isOverlapped)
+	{
+		transform.Translate(colliderDistance.pointA - colliderDistance.pointB);
+	}
+}
+```
+
+As noted above, the array will contain our own <code class="class">BoxCollider</code>—we skip it during our foreach loop.
+
+`Collider2D.Distance` returns a custom object that contains some useful pieces of data. One of these is `isOverlapped`, which tells us if the two colliders are touching. Once we have ensured they are, we take the <code class="class">Vector2</code> from `pointA` to `pointB`. This is the shortest vector that will push our collider out of the other, resolving the collision.
+
+{% endmd %}
+{% aside "Why do we need to check isOverlapped? Isn't it assured the colliders are touching at this point?" %}
+	<p>Not necessarily. Before the foreach loop, they were definitely touching. However, it is possible that one of the <em>other</em> colliders in the array of hits inadvertently pushed the controller not only out of itself, but also out of another collider it was currently intersecting.</p>
+	<img src="/media/tutorials/isoverlapped-diagram.gif"></img>
+	<p>This also implies that it's possible for our controller to be pushed into other colliders it was not initially intersecting; we're not going to worry about that for now, but one solution is to simply run the collision process multiple times until the controller is no longer contacting any colliders.</p>
+{% endaside %}
+{% md %}
+
+Before moving on, we need to make sure our project's physics settings are properly configured for our controller. In **Project Settings → Physics 2D**, make sure that `Auto Sync Transforms` is **checked**. This property automatically syncs physics objects (such as our controller's <code class="class">Box Collider</code>) to the physics engine; when it is disabled, objects are only synced at the end of the frame.
+
+As we are making use of the `Collider2D.Distance` function at the end of the `Update` loop—*after* we have translated our controller—it is essential that the collider's position is fully updated.
+
+## 3. Jumping
+
+To complete our platformer controller, we will need to implement the ability to jump. Essential to this is the ability to detect when our character is *grounded*, or standing on the floor. This will allow us to know when our character is allowed to jump (i.e., prevent jumping when in the air).
+
+### 3.1 Air movement
+
+We'll begin by adding in the ability to jump by pressing the "Jump" button (this defaults to Spacebar in Unity). Insert the following at the top of `Update`.
+
+```cs
+if (Input.GetButtonDown("Jump"))
+{
+	velocity.y = Mathf.Sqrt(2 * jumpHeight * Mathf.Abs(Physics2D.gravity.y));
+}
+```
+
+Once we're in the air, we'll need gravity to pull us back to the surface. Add this line below the one just inserted.
+
+```cs
+velocity.y += Physics2D.gravity.y * Time.deltaTime;
+```
+
+Note that in the skeleton project, `Physics2D.gravity</code> is set to (0, -25). This value can be modified in `Edit > Project Settings > Physics 2D</code>.
+
+You'll notice two issues at this point: our controller can jump while in mid-air, and gravity is continuously applied even when on the ground. To resolve this, we'll need to know when our controller is *grounded.*
+
+{% endmd %}
+{% aside "How does the code calculating jump velocity work?" %}
+	<p>The line setting <code>velocity.y</code> uses a rearrangement of the following formula.</p>
+	<img src="/media/tutorials/acceleration-formula.gif" class="small"></img>
+	<p>Where <strong>Vo</strong> is the initial velocity, <strong>Vf</strong> is the final velocity, <strong>d</strong> is distance travelled and <strong>a</strong> is acceleration. Our final velocity is zero, since at the peak of the jump there is no motion. Acceleration is the downwards force of gravity, and distance is the jump height we want to reach. Solving for <strong>Vo</strong> yields the equation found in the code.</p>
+{% endaside %}
+{% md %}
+
+### 3.2 Detecting ground
+
+Before being able to know when our character is on the ground, we have to first define what "ground" is in this context. We will define ground as any surface at with angle of **less than** 90 degrees with respect to the world up. Our controller will be defined as *grounded* if they have contacted a the ground.
+
+We will accomplish this by testing the normal of each surface we collided with to see if it fulfills our criteria as "ground". Insert the following code at the specified locations.
+
+```cs
+// Insert as a new field in the class.
+private bool grounded;
+
+…
+
+// Place above the foreach loop to clear the ground state each frame.
+grounded = false;
+
+…
+
+// Place inside the foreach loop, just after the transform.Translate call.
+if (Vector2.Angle(colliderDistance.normal, Vector2.up) &lt 90 && velocity.y &lt 0)
+{
+	grounded = true;
+}
+```
+
+Two checks are performed in the above if statement. The first verifies that the angle between the collision normal and the world up is below 90. The second checks that our controller's vertical velocity is downwards—this way, we won't "ground" to nearby ledges when we are jumping alongside them.
+
+Ground is now being correctly detected and stored in a field. We can use this data to solve the problems stated at the end of 3.1. Wrap the jumping code in the following if statement.
+
+```cs
+if (grounded)
+{
+	velocity.y = 0;
+
+	// Jumping code we implemented earlier—no changes were made here.
+	if (Input.GetButtonDown("Jump"))
+	{
+		// Calculate the velocity required to achieve the target jump height.
+		velocity.y = Mathf.Sqrt(2 * jumpHeight * Mathf.Abs(Physics2D.gravity.y));
+	}
+}
+```
+
+Jumping is now only permitted when our controller is grounded. As well, we set our y velocity to zero each frame we are grounded. Our controller is very nearly complete, but we'll add a little bit more polish to the air controls before wrapping it up.
+
+### 3.2 Air momentum
+
+Most platforming games tend to restrict a player's control while they are in the air, typically by reducing how quickly they can accelerate. As well, there isn't usually any automatic deceleration applied when there is no movement input from the player. These design choices help add a feeling of weight and commitment to jumping, making it more exciting. Let's add them to our controller, inserting the code below immediately after gravity is applied, replacing the previous `if</code> statement.
+
+```cs
+float acceleration = grounded ? walkAcceleration : airAcceleration;
+float deceleration = grounded ? groundDeceleration : 0;
+
+// Update the velocity assignment statements to use our selected
+// acceleration and deceleration values.
+if (moveInput != 0)
+{
+	velocity.x = Mathf.MoveTowards(velocity.x, speed * moveInput, acceleration * Time.deltaTime);
+}
+else
+{
+	velocity.x = Mathf.MoveTowards(velocity.x, 0, deceleration * Time.deltaTime);
+}
+```
+
+Here we select an acceleration and deceleration value based on whether we are grounded or not. This way, we can modify how "floaty" our controller feels while jumping.
+
+## Conclusion
+
+The controller built in this lesson can be used as a solid foundation for nearly any kind of 2D project. Although the mechanics and interactions will vary from game to game, the core fundementals—velocity, collision detection and resolution, grounding—tend to always be present.
+
+{% endmd %}
+{{ macro.repo('https://github.com/IronWarrior/2DCharacterControllerTutorial')}}

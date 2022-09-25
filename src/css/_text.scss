@@ -1,0 +1,137 @@
+body
+{
+	font-family: $sans-serif-font;
+	font-size: 1em;
+	font-weight: 400;
+	line-height: 1.8em;
+}
+
+a
+{
+	text-decoration: none;
+	color: black;
+}
+
+a:visited
+{
+	color: black;
+}
+
+h1
+{
+	font-family: $serif-font;
+	font-size: 2.2em;
+	font-weight: 600;
+	margin-top: 0.2em;
+	margin-bottom: 0.2em;
+}
+
+h2 {
+    font-family: $serif-font;
+    font-size: 2em;
+    font-weight: 600;
+    margin-top: 1.2em;
+    margin-bottom: 0.7em;
+}
+
+h3 {
+    font-family: $serif-font;
+    font-size: 1.6em;
+    font-weight: 500;
+    margin-top: 1.2em;
+    margin-bottom: 0.7em;
+    opacity: 0.85;
+}
+
+p
+{
+	font-family: $sans-serif-font;
+	font-size: 1em;
+	font-weight: 400;
+	line-height: 1.8em;
+	margin-bottom: 1.5em;
+}
+
+p > a, li > a, .inline-link {
+    color: $accent-color;
+    border-bottom: 2px solid $accent-color;
+}
+
+p > a:hover, li > a:hover, .inline-link:hover {
+    color: $accent-color;
+    border-bottom: 0px solid $accent-color;
+}
+
+p > a:visited, li > a:visited, .inline-link:visited {
+    color: $accent-color;
+}
+
+p > code
+{
+	border: 1px solid rgba(0, 0, 0, .25);
+	padding: 0.1em 0.25em;
+	border-radius: 4px;
+	color: #333333;
+}
+
+p > code.class
+{
+	color: #12ab70;
+	border-color: rgba(48, 197, 140, 0.45)
+}
+
+p > code.variable
+{
+	color: #2f73c8;
+	border-color: rgba(47, 115, 200, 0.45)
+}
+
+em
+{
+	font-style: italic;
+}
+
+strong
+{
+	font-weight: 600;
+}
+
+ul
+{
+	list-style-type: disc;
+	padding-left: 1em;
+	
+	margin-top: 1.5em;
+	margin-bottom: 2em;
+}
+
+li::marker
+{
+	color: #555555;
+}
+
+@media (min-width: 768px)
+{
+	h1
+	{
+		font-size: 3em;
+		margin-top: 0.7em;
+	}
+	
+	h2 
+	{
+		margin-top: 2em;
+		margin-bottom: 1em;
+	}
+	
+	h3 
+	{
+		margin-top: 1.6em;
+		margin-bottom: 0.8em;
+	}
+	
+	p
+	{
+		line-height: 1.9em;
+	}
+}

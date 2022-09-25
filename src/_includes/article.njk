@@ -1,0 +1,17 @@
+---
+layout: layout.njk
+---
+
+<main class="tutorial">
+	<div class="tutorial-title clearfix">
+		<h1>{{ name }}</h1>
+		<h3>>> using {{ tool }} {{ toolSuffix }}</h3>
+	</div>
+	<div class="tutorial-body">
+		<div class="tutorial-duration">
+			<div class="tutorial-stopwatch"></div>
+			<h4>{{ duration }} minutes to complete</h4>
+		</div>
+			{{ content | safe }}
+	</div>
+</main>

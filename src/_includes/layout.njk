@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>{{ title }}</title>
+	<link href="{{ '/css/style.css' | url }}" rel="stylesheet"/>
+	<link href="https://fonts.googleapis.com/css?family=Zilla+Slab" rel="stylesheet"/>
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"/>
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-32x32.png"/>
+	<link rel="manifest" href="/manifest.json"/>
+	<meta name="Description" content="{{ description }}"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+	<meta property="og:title" content="{{ ogTitle or title }}" />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="{% fullUrl page.url %}" />
+	<meta property="og:image" content="{% fullUrl ogImage or thumb or '/media/portfolio/r-logo.png' %}" />
+	<meta property="og:description" content="{{ description }}" />
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=UA-128293172-2"></script>
+	<script>
+	  window.dataLayer = window.dataLayer || [];
+	  function gtag(){dataLayer.push(arguments);}
+	  gtag('js', new Date());
+
+	  gtag('config', 'UA-128293172-2');
+	</script>
+</head>
+<body>
+	<nav>
+		<a href="{{ '/' | url }}">Home</a>
+		<a href="{{ '/articles/' | url }}">Articles</a>
+		<a href="{{ '/about/' | url }} ">About</a>
+	</nav>
+	{{ content | safe }}
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script type="text/javascript" src="/js/scripts.js"></script>
+</body>
+<footer>
+This site was last updated {{data.builtAt}}
+</footer>
+</html>

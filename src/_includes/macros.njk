@@ -1,0 +1,34 @@
+{% macro repo (url) -%}
+<a class="button" href="{{ url }}" target="_blank">
+	<span>View source</span>
+	<span class="button-type">GitHub repository</span>
+</a>
+{% endmacro %}
+
+{% macro patreonArticlePrompt() -%}
+<div class="patreon-info">
+	<p>These tutorials are made possible, and kept <strong>free</strong> and <strong>open source</strong>, by your support. If you enjoy them, please consider becoming my <a href="https://www.patreon.com/bePatron?u=10821388" target="_blank">patron through Patreon</a>.</p> 
+	<a class="button patreon" href="https://www.patreon.com/bePatron?u=10821388" target="_blank">
+		<span>Become a patron</span>
+	</a>
+</div>
+{% endmacro %}
+
+{%macro starterProject(url) -%}
+<a class="button" href="{{url}}">
+	<span>Download starter project</span>
+	<span class="button-type">.zip</span>
+</a>
+{% endmacro %}
+
+{% macro articleInfo(info) %}
+<div class="tutorial-info">
+	<p><span class="drop">You will learn</span> {{ info }}.</p>
+</div>
+{% endmacro %}
+
+{% macro projectInfo() %}
+<div class="project-info clearfix">
+	<div class="project-info-note"><strong>The completed project</strong> is provided at the end of the article. Note that it also contains a large amount of comments in the created shader file to aid understanding.</div>
+</div>
+{% endmacro %}

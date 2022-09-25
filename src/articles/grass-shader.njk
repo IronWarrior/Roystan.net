@@ -1,0 +1,754 @@
+---
+layout: article.njk
+title: Unity Grass Shader Tutorial
+name: Grass Shader
+date: 2019-03-31
+thumbnail: /media/tutorials/grass/grass-complete.png
+tool: Unity engine
+toolSuffix: 2018.3
+duration: 60
+description: Learn to write a grass shader for Unity engine. Generate grass from an input mesh using a geometry shader, and control the density using tessellation. The blades of grass use a random function for size and angle variation, and cast and receive shadows.
+ogTitle: Unity Grass Geometry Shader Tutorial at Roystan
+---
+
+
+
+			<div class="figure-header">
+				<div class="video-gfycat figure-header-shadowed">
+					<iframe src='https://gfycat.com/ifr/DangerousImmenseCanadagoose?hd=1' frameborder='0' scrolling='no' width='100%' height='100%' allowfullscreen>
+					</iframe>
+				</div>
+			</div>
+			<div class="tutorial-info">
+				<p><span class="drop">You will learn</span> to write a geometry shader to generate blades of grass from an input mesh's vertices, and use tessellation to control the density of the grass.</p>
+			</div>
+			<p>This tutorial will describe step-by-step how to write a grass shader for Unity. The shader will take an input mesh, and from each vertex on the mesh generate a blade of grass using a <a href="https://docs.microsoft.com/en-us/windows/desktop/direct3d11/geometry-shader-stage" target="_blank">geometry shader</a>. To create interest and realism, the blades will have <strong>randomized dimensions</strong> and <strong>rotations</strong>, and be affected by <strong>wind</strong>. To control the density of the grass, <a href="https://docs.microsoft.com/en-us/windows/desktop/direct3d11/direct3d-11-advanced-stages-tessellation" target="_blank">tessellation</a> will be used to subdivide the input mesh. The grass will be capable of both <strong>casting</strong> and <strong>receiving</strong> shadows.</p>
+			<div class="project-info clearfix">
+				<div class="project-info-note"><strong>The completed project</strong> is provided at the end of the article. Note that it also contains a large amount of comments in the created shader file to aid understanding.</div>
+			</div>
+			<h3>Prerequisites</h3>
+			<p>To complete this tutorial, you will need a working knowledge of Unity engine, and an intermediate understanding of shader syntax and functionality.</p>
+			<a class="button" href="https://github.com/IronWarrior/UnityGrassGeometryShader/archive/skeleton.zip">
+				<span>Download starter project</span>
+				<span class="button-type">.zip</span>
+			</a>
+			<div class="patreon-info">
+				<p>These tutorials are made possible, and kept <strong>free</strong> and <strong>open source</strong>, by your support. If you enjoy them, please consider becoming my <a href="https://www.patreon.com/bePatron?u=10821388" target="_blank">patron through Patreon</a>.</p> 
+				<a href="https://www.patreon.com/bePatron?u=10821388" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+			</div>
+			<h2>Getting started</h2>
+			<p>Download the starter project provided above and open it in the Unity editor. Open the <code>Main</code> scene, and open the <code>Grass</code> shader in your preferred code editor.</p>
+			<p>This file contains a shader that outputs the color white, along with some functions we will use throughout this tutorial. You'll notice that these functions, along with the vertex shader, are enclosed in a <code>CGINCLUDE</code> block placed <em>outside</em> the <code>SubShader</code>. Code placed in this block will be <strong>automatically included in any passes</strong> in the shader; this will be useful later, as our shader will have multiple passes.</p>
+			<p>We will begin by writing a <strong>geometry shader</strong> to generate triangles from each vertex on our mesh's surface.</p>
+			<h2>1. Geometry shaders</h2>
+			<p>Geometry shaders are an optional part of the rendering pipeline. They are executed <strong>after</strong> the vertex shader (or the tessellation shader—if tessellation is being used), and before the vertices are processed for the fragment shader.</p>
+			<div class="figure">
+				<img src="https://docs.microsoft.com/en-us/windows/desktop/direct3d11/images/d3d11-pipeline-stages.jpg" class="medium"></img>
+				<div class="figure-info">Direct3D 11 graphics pipeline. Note that in this diagram, the fragment shader is referred to as the <em>pixel shader</em>. <a href="https://docs.microsoft.com/en-us/windows/desktop/direct3d11/overviews-direct3d-11-graphics-pipeline" target="_blank">Image sourced from here</a>.</div>
+			</div>
+			<p>Geometry shaders take in a single <a href="https://www.khronos.org/opengl/wiki/Primitive" target="_blank">primitive</a> as input, and can generate zero, one, or many primitives. We will start by writing a geometry shader to take in a <strong>vertex</strong> (or <em>point</em>) as input, and output a <strong>single triangle</strong> to represent a blade of grass.</p>
+<pre><code class="language-glsl">// Add inside the CGINCLUDE block.
+struct geometryOutput
+{
+	float4 pos : SV_POSITION;
+};
+
+[maxvertexcount(3)]
+void geo(triangle float4 IN[3] : SV_POSITION, inout TriangleStream&lt;geometryOutput&gt; triStream)
+{
+}
+
+…
+
+// Add inside the SubShader Pass, just below the #pragma fragment frag line.
+#pragma geometry geo
+</code></pre>
+			<p>The above declares a geometry shader named <code>geo</code>, with two parameters. The first, <code>triangle float4 IN[3]</code>, states that we will take in a single triangle (composed of three points) as our input. The second, of type <code>TriangleStream</code>, sets up our shader to output a stream of triangles, with each vertex using the <code>geometryOutput</code> structure to carry its data.</p>
+			<aside>
+				<div class="aside-button">
+					<h4>It was stated above that we would take in a single vertex, and emit a blade of grass. Why then do we take in a triangle?</h4>
+				</div>
+				<div class="aside-content">
+					<p>It would certainly be less redundant to take in a <code>point</code> as our input. This could be done as follows.</p>
+					<pre><code class="language-glsl">void geo(point vertexOutput IN[1], inout TriangleStream&lt;geometryOutput&gt; triStream)</code></pre>
+					<p>However, because our input mesh (in this case, <code>GrassPlane10x10</code> found in the <code>Mesh</code> folder) has a <a href="https://docs.unity3d.com/ScriptReference/MeshTopology.Triangles.html" target="_blank">triangle mesh topology</a>, this would cause a mismatch between the input mesh topology and our requested input primitive. While this <strong>is</strong> permitted in DirectX HLSL, it is <a href="https://www.khronos.org/opengl/wiki/Geometry_Shader#Primitive_in.2Fout_specification" target="_blank">not permitted in OpenGL</a>, and will generate an error.</p>
+				</div>
+			</aside>
+			<p>In addition, we add a final parameter above the function declaration in square brackets: <code>[maxvertexcount(3)]</code>. This tells the GPU that we will emit (but are <strong>not</strong> required to) <em>at most</em> 3 vertices. We also make sure that our <code>SubShader</code> uses the geometry shader, by declaring it inside the <code>Pass</code>.</p>
+			<p>Our geometry shader doesn't yet do anything; add the following code inside the geometry shader to emit a triangle.</p>
+<pre><code class="language-glsl">geometryOutput o;
+
+o.pos = float4(0.5, 0, 0, 1);
+triStream.Append(o);
+
+o.pos = float4(-0.5, 0, 0, 1);
+triStream.Append(o);
+
+o.pos = float4(0, 1, 0, 1);
+triStream.Append(o);</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-screen-space.gif"></img>
+			</div>
+			<p>This has yielded some odd results. Panning the camera around reveals that the triangle is being rendered in <strong>screen space</strong>. This makes sense; since the geometry shader occurs immediately before vertex processing, it takes over responsibility from the vertex shader to ensure vertices are outputted in <strong>clip space</strong>. We'll modify our code to reflect this.</p>
+<pre><code class="language-glsl">// Update the return call in the vertex shader.
+</code><span class="removed"><code>return UnityObjectToClipPos(vertex);</code></span><code class="language-glsl">
+return vertex;
+
+…
+
+// Update each assignment of o.pos in the geometry shader.
+o.pos = </code><span class="modified"><code>UnityObjectToClipPos(float4(0.5, 0, 0, 1));</code></span><code class="language-glsl">
+
+…
+
+o.pos = </code><span class="modified"><code>UnityObjectToClipPos(float4(-0.5, 0, 0, 1));</code></span><code class="language-glsl">
+
+…
+
+o.pos = </code><span class="modified"><code>UnityObjectToClipPos(float4(0, 1, 0, 1));</code></span></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-single-blade.png"></img>
+			</div>
+			<p>Our triangle is now correctly rendered in the world. However, it appears that only one is being created. In actuality, a triangle <em>is</em> being drawn for each vertex in our mesh, but the positions we are assigning to the triangle's vertices are <strong>constant</strong>—they do not change for each input vertex— placing all the triangles atop one another.</p>
+			<p>We will correct this by updating our output vertex positions to be <strong>offsets</strong> from the input point.</p>
+<pre><code class="language-glsl">// Add to the top of the geometry shader.
+float3 pos = IN[0];
+
+…
+
+// Update each assignment of o.pos.
+o.pos = UnityObjectToClipPos(</code><span class="modified"><code>pos + </code></span><code class="language-glsl">float3(0.5, 0, 0));
+
+…
+
+o.pos = UnityObjectToClipPos(</code><span class="modified"><code>pos + </code></span><code class="language-glsl">float3(-0.5, 0, 0));
+
+…
+
+o.pos = UnityObjectToClipPos(</code><span class="modified"><code>pos + </code></span><code class="language-glsl">float3(0, 1, 0));</code></span></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-multiple-blades.png"></img>
+			</div>
+			<aside>
+				<div class="aside-button">
+					<h4>Why are some vertices not emitting a triangle?</h4>
+				</div>
+				<div class="aside-content">
+					<img src="/media/tutorials/grass/missing-vertices.png"></img>
+					<p>Although we have defined our input primitive to be a <strong>triangle</strong>, we are only emitting a blade from <strong>one</strong> of the triangle's points, discarding the other two. While we could emit a blade from all three input points, this would cause neighbouring triangles to redundantly emit blades atop one another.</p>
+					<p>Alternatively, this could be resolved by using meshes with the <a href="https://docs.unity3d.com/ScriptReference/MeshTopology.Points.html" target="_blank">Points</a> topology type as the input mesh for our geometry shader.</p>
+				</div>
+			</aside>
+			<p>Triangles are now correctly drawn with their base positioned at their emitting vertex. Before moving on, set the <code>GrassPlane</code> object <strong>inactive</strong> in the scene, and set the <code>GrassBall</code> object <strong>active</strong>. As we want our grass to be generated correctly for all kinds of surfaces, it is important to test it on different shaped meshes.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-sphere.png"></img>
+			</div>
+			<p>Right now, the triangles are all being emitted in the same direction, rather than outwards from the surface of the sphere. To resolve this, we will construct our grass blades in <strong>tangent space</strong>.</p>
+			<h2>2. Tangent space</h2>
+			<p>Ideally, we want to build our blades of grass—applying random widths, heights, curvature, rotation—without having to consider the angle of the surface the blade is being emitted from. In simpler terms, we will define the blade in space <strong>local to the vertex</strong> emitting it, and then transform it to be <strong>local to the mesh</strong>. This space is called <a href="https://en.wikipedia.org/wiki/Tangent_space" target="_blank">tangent space</a>.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/tangent-space.png"></img>
+				<div class="figure-info">In tangent space, the <strong>X</strong>, <strong>Y</strong>, and <strong>Z</strong> axes are defined with respect to the normal and position of the surface (in our case, a vertex). Modified from <a href="https://en.wikipedia.org/wiki/Tangent_space#/media/File:Image_Tangent-plane.svg" target="_blank">Wikipedia article image</a>.</div>
+			</div>
+			<p>Like any kind of space, we can define the tangent space of our vertex with three vectors: a <strong>right</strong>, <strong>forward</strong>, and <strong>up</strong>. With these vectors, we can construct a matrix to rotate our blade of grass from tangent to local space.</p>
+			<p>We can access a <strong>right</strong> and <strong>up</strong> vector by adding some new vertex inputs.</p>
+<pre><code class="language-glsl">// Add to the CGINCLUDE block.
+struct vertexInput
+{
+	float4 vertex : POSITION;
+	float3 normal : NORMAL;
+	float4 tangent : TANGENT;
+};
+
+struct vertexOutput
+{
+	float4 vertex : SV_POSITION;
+	float3 normal : NORMAL;
+	float4 tangent : TANGENT;
+};
+
+…
+
+// Modify the vertex shader.
+</code><span class="modified"><code>vertexOutput vert(vertexInput v)
+{
+	vertexOutput o;
+	o.vertex = v.vertex;
+	o.normal = v.normal;
+	o.tangent = v.tangent;
+	return o;
+}</code></span><code class="language-glsl">
+
+…
+
+// Modify the input for the geometry shader. Note that the SV_POSITION semantic is removed.
+void geo(triangle </code><span class="modified"><code>vertexOutput IN[3]</code></span><code class="language-glsl">, inout TriangleStream&lt;geometryOutput&gt; triStream)
+
+…
+
+// Modify the existing line declaring pos.
+float3 pos = IN[0]</code><span class="modified">.vertex</code></span><code class="language-glsl">;</code></pre>
+			<p>A third vector can be calculated by taking the <a href="https://en.wikipedia.org/wiki/Cross_product" target="_blank">cross product</a> between the other two vectors. The cross product returns a vector <strong>perpendicular</strong> to its two input vectors.</p>
+<pre><code class="language-glsl">// Place in the geometry shader, below the line declaring float3 pos.		
+float3 vNormal = IN[0].normal;
+float4 vTangent = IN[0].tangent;
+float3 vBinormal = cross(vNormal, vTangent) * vTangent.w;</code></pre>
+			<aside>
+				<div class="aside-button">
+					<h4>Why is the result of the cross product multiplied by the tangent's w coordinate?</h4>
+				</div>
+				<div class="aside-content">
+					<p>When a mesh is exported from a 3D modelling package, it usually has the binormals (also called the <em>bitangents</em>) already stored in the mesh data. Instead of importing these binormals, Unity simply grabs each binormal's direction and assigns it to the tangent's <strong>w</strong> coordinate. This has the benefit of saving on memory, while still ensuring the correct binormal can be reconstructed later. A further discussion on this topic <a href="https://forum.unity.com/threads/what-is-tangent-w-how-to-know-whether-its-1-or-1-tangent-w-vs-unity_worldtransformparams-w.468395/" target="_blank">can be found here</a>.</p>
+				</div>
+			</aside>
+			<p>With all three vectors, we can construct a matrix to transform between tangent and local space. We will multiply each vertex in our blade of grass by this matrix before it is passed into <code>UnityObjectToClipPos</code>, which expects a vertex in local space.</p>
+<pre><code class="language-glsl">// Add below the lines declaring the three vectors.
+float3x3 tangentToLocal = float3x3(
+	vTangent.x, vBinormal.x, vNormal.x,
+	vTangent.y, vBinormal.y, vNormal.y,
+	vTangent.z, vBinormal.z, vNormal.z
+	);</code></pre>
+			<p>Before using this matrix, we'll move our vertex output code into a function to avoiding writing the same lines of code over and over again. This is often called the <a href="https://en.wikipedia.org/wiki/Don%27t_repeat_yourself" target="_blank">DRY principle</a>, or <strong>don't repeat yourself</strong>.</p>
+<pre><code class="language-glsl">// Add to the CGINCLUDE block.
+geometryOutput VertexOutput(float3 pos)
+{
+	geometryOutput o;
+	o.pos = UnityObjectToClipPos(pos);
+	return o;
+}
+
+…
+
+// Remove the following from the geometry shader.
+</code><span class="removed"><code>geometryOutput o;
+
+o.pos = UnityObjectToClipPos(pos + float3(0.5, 0, 0));
+triStream.Append(o);
+
+o.pos = UnityObjectToClipPos(pos + float3(-0.5, 0, 0));
+triStream.Append(o);
+
+o.pos = UnityObjectToClipPos(pos + float3(0, 1, 0));
+triStream.Append(o);</code></span><code class="language-glsl">
+
+// ...and replace it with the code below.
+triStream.Append(VertexOutput(pos + float3(0.5, 0, 0)));
+triStream.Append(VertexOutput(pos + float3(-0.5, 0, 0)));
+triStream.Append(VertexOutput(pos + float3(0, 1, 0)));</code></pre>
+			<p>Finally, we will multiply out output vertices by the <code>tangentToLocal</code> matrix, correctly aligning them with their input point's normal.</p>			
+<pre><code class="language-glsl">triStream.Append(VertexOutput(pos + </code><span class="modified">mul(tangentToLocal, float3(0.5, 0, 0))</code></span><code class="language-glsl">));
+triStream.Append(VertexOutput(pos + </code><span class="modified">mul(tangentToLocal, float3(-0.5, 0, 0))</code></span><code class="language-glsl">));
+triStream.Append(VertexOutput(pos + </code><span class="modified">mul(tangentToLocal, float3(0, 1, 0))</code></span><code class="language-glsl">));</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-sphere-y.png" class="medium"></img>
+			</div>
+			<p>This looks closer to what we want, but is not entirely correct. The issue here is that we initially defined our "up" direction to be on the <strong>Y</strong> axis; in tangent space, however, convention usually dictates the up direction be along the <strong>Z</strong> axis. We'll make that change now.</p>
+<pre><code class="language-glsl">// Modify the position of the third vertex being emitted.
+triStream.Append(VertexOutput(pos + mul(tangentToLocal, float3</code><span class="modified">(0, 0, 1)</code></span><code class="language-glsl">)));</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-sphere-z.png" class="medium"></img>
+			</div>
+			<h2>3. Grass look</h2>
+			<p>To make our triangles look more like blades of grass, we'll need to add some color and variety. We will start by adding a <strong>gradient</strong> that runs from the top of the blade to the bottom.</p>
+			<h3>3.1 Color gradient</h3>
+			<p>Our goal is to allow the artist to define two colors—a top and a bottom—and interpolate between these two colors from the tip of the blade to the base. These colors are already defined in the shader file as <code>_TopColor</code> and <code>_BottomColor</code>. To sample them correctly, we will need to provide the fragment shader with <strong>UV coordinates</strong>.</p>
+<pre><code class="language-glsl">// Add to the geometryOutput struct.
+float2 uv : TEXCOORD0;
+
+…
+
+// Modify the VertexOutput function signature.
+geometryOutput VertexOutput(float3 pos, </code><span class="modified">float2 uv</code></span><code class="language-glsl">)
+
+…
+
+// Add to VertexOutput, just below the line assigning o.pos.
+o.uv = uv;
+
+…
+
+// Modify the existing lines in the geometry shader.
+triStream.Append(VertexOutput(pos + mul(tangentToLocal, float3(0.5, 0, 0)), </code><span class="modified">float2(0, 0)</code></span><code class="language-glsl">));
+triStream.Append(VertexOutput(pos + mul(tangentToLocal, float3(-0.5, 0, 0)), </code><span class="modified">float2(1, 0)</code></span><code class="language-glsl">));
+triStream.Append(VertexOutput(pos + mul(tangentToLocal, float3(0, 0, 1)), </code><span class="modified">float2(0.5, 1)</code></span><code class="language-glsl">));</code></pre>
+			<p>We construct the UVs for our blade in a triangle shape, with the two base vertices at the bottom left and right, and the tip vertex placed center-top.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-uv.png" class="small"></img>
+				<div class="figure-info">The UV coordinates of the three vertices of our grass blades. Although we will color our blades with a simple gradient, laying the coordinates out in this way could allow for texture mapping.</div>
+			</div>
+			<p>We can now sample our top and bottom colors in the fragment shader using the UV, and interpolate between them using <code>lerp</code>. We'll also need to modify the fragment shader's parameters to take <code>geometryOutput</code> as input, rather just only the <code>float4</code> position.</p>
+<pre><code class="language-glsl">// Modify the function signature of the fragment shader.
+float4 frag (</code><span class="modified">geometryOutput i</code></span><code class="language-glsl">, fixed facing : VFACE) : SV_Target
+
+…
+
+// Replace the existing return call.
+</code><span class="removed">return float4(1, 1, 1, 1);</code></span><code class="language-glsl">
+
+return lerp(_BottomColor, _TopColor, i.uv.y);</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-gradient.png"></img>
+			</div>
+			<h3>3.2 Random facing direction</h3>
+			<p>To create variation and add a more natural look, we'll next make every blade of grass face a random direction. To do this, we'll need to construct a rotation matrix that rotates a random amount around the blade's <strong>up</strong> axis.</p>
+			<p>The shader file has two functions included that will help us do this: <code>rand</code>, which generates a random number from a 3-dimensional input, and <code>AngleAxis3x3</code>, which takes an angle (in <a href="https://en.wikipedia.org/wiki/Radian" target="_blank">radians</a>) and returns a matrix rotating that amount around the provided axis. The latter function works the same way as the <a href="https://docs.unity3d.com/ScriptReference/Quaternion.AngleAxis.html" target="_blank">Quaternion.AngleAxis</a> C# function (although <code>AngleAxis3x3</code> returns a matrix, not a quaternion).</p>
+			<p>The <code>rand</code> function returns a number in the 0...1 range; we will multiply this by <strong>two Pi</strong> to get the full gamut of angular values.</p>
+<pre><code class="language-glsl">// Add below the line declaring the tangentToLocal matrix.
+float3x3 facingRotationMatrix = AngleAxis3x3(rand(pos) * UNITY_TWO_PI, float3(0, 0, 1));</code></pre>
+			<p>We use the input position <code>pos</code> as the random seed for our rotation. This way, every blade will get a different rotation, but it will be consistent between frames.</p>
+			<p>The rotation can be applied to the blade by multiplying it with the existing <code>tangentToLocal</code> matrix. Note that matrix multiplication is <strong>not</strong> <a href="https://en.wikipedia.org/wiki/Commutative_property" target="_blank">commutative</a>; the order of the operands <strong>does</strong> matter.</p>
+<pre><code class="language-glsl">// Add below the line declaring facingRotationMatrix.
+float3x3 transformationMatrix = mul(tangentToLocal, facingRotationMatrix);
+
+…
+
+// Replace the multiplication matrix operand with our new transformationMatrix.
+triStream.Append(VertexOutput(pos + mul(</code><span class="modified">transformationMatrix</code></span><code class="language-glsl">, float3(0.5, 0, 0)), float2(0, 0)));
+triStream.Append(VertexOutput(pos + mul(</code><span class="modified">transformationMatrix</code></span><code class="language-glsl">, float3(-0.5, 0, 0)), float2(1, 0)));
+triStream.Append(VertexOutput(pos + mul(</code><span class="modified">transformationMatrix</code></span><code class="language-glsl">, float3(0, 0, 1)), float2(0.5, 1)));
+</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-random-facing.png"></img>
+			</div>
+			<h3>3.3 Random forward bend</h3>
+			<p>If the blades of grass all stand up perfectly straight, they look very uniform. This may be desirable for well tended grass, like on a putting green, but does not accurately represent grass in the wild. We'll create a new matrix to rotate the grass along its <strong>X</strong> axis, and a property to control this rotation.</p> 
+<pre><code class="language-glsl">// Add as a new property.
+_BendRotationRandom("Bend Rotation Random", Range(0, 1)) = 0.2
+
+…
+
+// Add to the CGINCLUDE block.
+float _BendRotationRandom;
+
+…
+
+// Add to the geometry shader, below the line declaring facingRotationMatrix.
+float3x3 bendRotationMatrix = AngleAxis3x3(rand(pos.zzx) * _BendRotationRandom * UNITY_PI * 0.5, float3(-1, 0, 0));</code></pre>
+			<p>We use the position again as our random seed, this time <a href="https://www.khronos.org/opengl/wiki/Data_Type_(GLSL)#Swizzling" target="_blank">swizzling</a> it to create a unique seed. We also multiply <code>UNITY_PI</code> by <strong>0.5</strong>; this gives us a random range of 0...90 degrees.</p>
+			<p>Once again, we apply this matrix through rotation, taking care to add it in the correct order.</p>
+<pre><code class="language-glsl">// Modify the existing line.
+float3x3 transformationMatrix = mul(mul(tangentToLocal, facingRotationMatrix), </code><span class="modified">bendRotationMatrix</code></span><code class="language-glsl">);</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-random-bend.gif"></img>
+			</div>
+			<h3>3.4 Width and height</h3>
+			<p>The grass blades' dimensions right now are fixed at 1 unit wide, 1 unit tall. We will add some properties to control this, as well as some properties to add some random variation.</p>
+<pre><code class="language-glsl">// Add as new properties.
+_BladeWidth("Blade Width", Float) = 0.05
+_BladeWidthRandom("Blade Width Random", Float) = 0.02
+_BladeHeight("Blade Height", Float) = 0.5
+_BladeHeightRandom("Blade Height Random", Float) = 0.3
+
+…
+
+// Add to the CGINCLUDE block.
+float _BladeHeight;
+float _BladeHeightRandom;	
+float _BladeWidth;
+float _BladeWidthRandom;
+
+…
+
+// Add to the geometry shader, above the triStream.Append calls.
+float height = (rand(pos.zyx) * 2 - 1) * _BladeHeightRandom + _BladeHeight;
+float width = (rand(pos.xzy) * 2 - 1) * _BladeWidthRandom + _BladeWidth;
+
+…
+
+// Modify the existing positions with our new height and width.
+triStream.Append(VertexOutput(pos + mul(transformationMatrix, float3(</code><span class="modified">width</code></span><code class="language-glsl">, 0, 0)), float2(0, 0)));
+triStream.Append(VertexOutput(pos + mul(transformationMatrix, float3(</code><span class="modified">-width</code></span><code class="language-glsl">, 0, 0)), float2(1, 0)));
+triStream.Append(VertexOutput(pos + mul(transformationMatrix, float3(0, 0, </code><span class="modified">height</code></span><code class="language-glsl">)), float2(0.5, 1)));</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-thin.png"></img>
+			</div>
+			<p>The triangles now much more closely resemble blades of grass, but—there are far too few of them. There simply are not enough vertices in the input mesh to create the appearance of a dense field.</p>
+			<p>One solution would be to create a new, denser mesh, either through C# or using 3D modelling software. While this would work, it would not allow for dynamic control of the grass density. Instead, we will subdivide the input mesh using <strong>tessellation</strong>.</p>
+			<h2>4. Tessellation</h2>
+			<p><strong>Tessellation</strong> is an optional stage in the rendering pipeline that occurs after the vertex shader, and before the geometry shader (if there is one). Its job is to subdivide a a single input surface into a many primitives. Tessellation is implemented with two programmable stages: the <a href="https://docs.microsoft.com/en-us/windows/desktop/direct3d11/direct3d-11-advanced-stages-tessellation#hull-shader-stage" target="_blank">hull</a> and <a href="https://docs.microsoft.com/en-us/windows/desktop/direct3d11/direct3d-11-advanced-stages-tessellation#domain-shader-stage" target="_blank">domain</a> shaders.</p>
+			<p>For surface shaders, Unity has a <a href="https://docs.unity3d.com/Manual/SL-SurfaceShaderTessellation.html" target="_blank">built-in tessellation implementation</a>. However, as we are <strong>not</strong> using surface shaders, it is necessary to implement custom hull and domain shaders. This article will not go into implementing tessellation in detail—instead, we will make use of the included <code>CustomTessellation.cginc</code> file. This file is adapted from <a href="https://catlikecoding.com/unity/tutorials/advanced-rendering/tessellation/" target="_blank">this article by Catlike Coding</a>, which is an excellent reference on how to implement tessellation in Unity.</p>
+			<p>If we enable the <code>TessellationExample</code> object in the scene, we can see it already has a material applied that implements tessellation. Modifying the <strong>Tessellation Uniform</strong> property will demonstrate the subdivision effect.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/tessellation-demo.gif"></img>
+			</div>
+			<p>We will implement tessellation in our grass shader to control the density of the plane, and therefore control the number of generate blades. First, we need to include the <code>CustomTessellation.cginc</code> file. We will reference it by its <em>relative</em> path to our shader.</p>
+<pre><code class="language-glsl">// Add inside the CGINCLUDE block, below the other #include statements.
+#include "Shaders/CustomTessellation.cginc"</code></pre>
+			<p>If you open <code>CustomTessellation.cginc</code>, you will note that it has already defined <code>vertexInput</code> and <code>vertexOutput</code> structs, as well as a vertex shader. It is unnecessary to redefine them in our grass shader; they can be removed.</p>
+<pre><code class="removed">struct vertexInput
+{
+	float4 vertex : POSITION;
+	float3 normal : NORMAL;
+	float4 tangent : TANGENT;
+};
+
+struct vertexOutput
+{
+	float4 vertex : SV_POSITION;
+	float3 normal : NORMAL;
+	float4 tangent : TANGENT;
+};
+
+vertexOutput vert(vertexInput v)
+{
+	vertexOutput o;
+	o.vertex = v.vertex;
+	o.normal = v.normal;
+	o.tangent = v.tangent;
+	return o;
+}</code></pre>
+			<p>Note that the vertex shader <code>vert</code> in <code>CustomTessellation.cginc</code> simply passes the input directly through to the tessellation stage; the job of creating the <code>vertexOutput</code> struct is taken care of by the <code>tessVert</code> function, called inside the domain shader.</p>
+			<p>We can now add the <strong>hull</strong> and <strong>domain</strong> shaders to our grass shader. As well, we will add a new property, <code>_TessellationUniform</code>, to control the subdivision amount—the matching variable for this property is already declared in <code>CustomTessellation.cginc</code>.</p>
+<pre><code class="language-glsl">// Add as a new property.			
+_TessellationUniform("Tessellation Uniform", Range(1, 64)) = 1
+
+…
+
+// Add below the other #pragma statements in the SubShader Pass.
+#pragma hull hull
+#pragma domain domain</code></pre>
+			<p>Modifying the <strong>Tessellation Uniform</strong> property now allows us to control the grass density. I've found that a value of <strong>5</strong> produces good results.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-tess.gif"></img>
+			</div>
+			<h2>5. Wind</h2>
+			<p>We will implement wind by sampling a <strong>distortion texture</strong>. This texture will be similar to a <a href="https://en.wikipedia.org/wiki/Normal_mapping" target="_blank">normal map</a>, except with only two channels (red and green) instead of three. We will use these two channels as the <strong>X</strong> and <strong>Y</strong> directions of the wind.</p>
+			<div class="figure">
+				<img src="/media/tutorials/WaterDistortion.png" class="small"></img>
+			</div>
+			<p>Before sampling the wind texture, we will need to construct a UV coordinate. Rather than using texture coordinates assigned to the mesh, we will use the input point's position. This way, if there are multiple grass meshes in the world, this will create the illusion they are all part of the same wind system. As well, we will use the <a href="https://docs.unity3d.com/Manual/SL-UnityShaderVariables.html" target="_blank">built-in shader variable</a> <code>_Time</code> to scroll the wind texture along our grass surface.</p>
+<pre><code class="language-glsl">// Add as new properties.
+_WindDistortionMap("Wind Distortion Map", 2D) = "white" {}
+_WindFrequency("Wind Frequency", Vector) = (0.05, 0.05, 0, 0)
+
+…
+
+// Add to the CGINCLUDE block.
+sampler2D _WindDistortionMap;
+float4 _WindDistortionMap_ST;
+
+float2 _WindFrequency;
+
+…
+
+// Add to the geometry shader, just above the line declaring the transformationMatrix.
+float2 uv = pos.xz * _WindDistortionMap_ST.xy + _WindDistortionMap_ST.zw + _WindFrequency * _Time.y;</code></pre>
+			<p>We apply the <code>_WindDistortionMap</code> scale and offset to our position, and then further offset it by <code>_Time.y</code>, scaled by <code>_WindFrequency</code>. We'll now use this UV to sample our texture, and create a property to control the wind strength.</p>
+<pre><code class="language-glsl">// Add as a new property.
+_WindStrength("Wind Strength", Float) = 1
+
+…
+
+// Add to the CGINCLUDE block.
+float _WindStrength;
+
+…
+
+// Add below the line declaring float2 uv.
+float2 windSample = (tex2Dlod(_WindDistortionMap, float4(uv, 0, 0)).xy * 2 - 1) * _WindStrength;</code></pre>
+			<p>Note that we rescale the sampled value from the texture from a 0...1 range to be in a -1...1 range. Next, we can construct a normalized vector representing the direction of the wind.</p>
+<pre><code class="language-glsl">// Add below the line declaring float2 windSample.
+float3 wind = normalize(float3(windSample.x, windSample.y, 0));</code></pre>
+			<p>We can now construct a matrix to rotate about this vector, and multiply it into our <code>transformationMatrix</code>.</p>
+<pre><code class="language-glsl">// Add below the line declaring float3 wind.
+float3x3 windRotation = AngleAxis3x3(UNITY_PI * windSample, wind);
+
+…
+
+// Modify the existing line.
+float3x3 transformationMatrix = </code><span class="modified">mul(mul(mul(tangentToLocal, windRotation), facingRotationMatrix), bendRotationMatrix)</code></span><code class="language-glsl">;</code></pre>
+			<p>Finally, in the Unity editor, apply the <code>Wind</code> texture (found at the root of the project) to the <strong>Wind Distortion Map</strong> slot of our grass material. As well, set the <strong>Tiling</strong> of the texture to <code>0.01, 0.01</code>.</p>
+				<div class="figure">
+					<div class="container">
+						<div class="video-gfycat">
+							<iframe src='https://gfycat.com/ifr/ClosedAngryIridescentshark?hd=1' frameborder='0' scrolling='no' width='100%' height='100%' allowfullscreen>
+							</iframe>
+						</div>
+					</div>
+				</div>
+			<div class="tip-info">
+				<p>If the grass isn't animating in the <strong>Scene</strong> view, click the <span class="unity-button unity-toggle-effects-button"></span><strong>Toggle skybox, fog, and various other effects</strong> button to enable animated materials.</p>
+			</div>
+			<p>From far away, this looks correct—however, if we inspect the blades of grass up close, we'll notice that the entire blade is rotating, causing the base to no longer be pinned to the ground.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/blade-intersection-error.png"></img>
+				<div class="figure-info">The blade's base is no longer pinned to the ground; it is intersecting the ground (in <strong>red</strong>), and also floating above the ground plane (denoted by the <strong>green</strong> line).</div>
+			</div>
+			<p>We'll correct this by defining a second transformation matrix that we apply only to the two base vertices. This matrix will <strong>not</strong> include the <code>windRotation</code> or <code>bendRotationMatrix</code> matrices, ensuring the base of the blade stays attached to its surface.</p>
+<pre><code class="language-glsl">// Add below the line declaring float3x3 transformationMatrix.
+float3x3 transformationMatrixFacing = mul(tangentToLocal, facingRotationMatrix);
+
+…
+
+// Modify the existing lines outputting the base vertex positions.
+triStream.Append(VertexOutput(pos + mul(</code><span class="modified">transformationMatrixFacing</code></span><code class="language-glsl">, float3(width, 0, 0)), float2(0, 0)));
+triStream.Append(VertexOutput(pos + mul(</code><span class="modified">transformationMatrixFacing</code></span><code class="language-glsl">, float3(-width, 0, 0)), float2(1, 0)));
+</code></pre>
+			<h2>6. Blade curvature</h2>
+			<p>Right now, our individual blades of grass are defined by a single triangle. While this is not a problem at long distances, up close the blades look overly rigid and geometric, rather than organic and alive. We will correct this by instead constructing our blades with several triangles and bending them along a <strong>curve</strong>.</p>
+			<p>Each blade of grass will be subdivided into a number of <strong>segments</strong>. Each segment will be rectangular in shape, and made up of two triangles, excluding the top segment—this will be a single triangle representing the blade's tip.</p>
+			<p>Up until now, we've only outputted three vertices, making for a single triangle—so with more vertices, how does the geometry shader know which ones should connect to each another to form triangles? The answer lies in the <a href="https://en.wikipedia.org/wiki/Triangle_strip" target="_blank">triangle strip</a> data structure. The first three vertices are connected to form a triangle—as before—with each additional vertex forming a triangle with the previous two.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-construction.gif" class="medium"></img>
+				<div class="figure-info">The subdivided blade of grass represented as a triangle strip, constructed one vertex at a time. After the initial three vertices, each additional vertex forms a new triangle with the previous two vertices.</div>
+			</div>
+			<p>This is not only more memory efficient, but also makes it easy to quickly construct sequences of triangles in code. If we wished to have multiple triangle strips, we could call the <a href="https://docs.microsoft.com/en-us/windows/desktop/direct3dhlsl/dx-graphics-hlsl-so-restartstrip" target="_blank">RestartStrip</a> function on the <code>TriangleStream</code>.</p>
+			<p>Before we begin outputting more vertices from our geometry shader, we will need to increase the <code>maxvertexcount</code>. We'll use a <code>#define</code> statement to allow the shader's author to control the number of segments, and calculate the number of outputted vertices from that.</p>
+<pre><code class="language-glsl">// Add to the CGINCLUDE block.
+#define BLADE_SEGMENTS 3
+
+…
+
+// Modify the existing line defining the maxvertexcount.
+[maxvertexcount(</code><span class="modified">BLADE_SEGMENTS * 2 + 1)</code></span><code class="language-glsl">]</pre></code>
+			<p>We initial define our segment count to be <strong>3</strong>, and update our <code>maxvertexcount</code> to calculate the number of vertices based off the segment count.</p>
+			<p>To create our segmented blade of grass, we will use a <code>for</code> loop. Each iteration of the loop will add <strong>two vertices</strong>: a <strong>left</strong> and a <strong>right</strong>. After the top is complete, we will add a final vertex at the tip of the blade.</p>
+			<p>Before we do this, it will be useful to move some of our code calculating our grass vertex positions into a function, as we will be using the code several times in and outside our loop. Add the following to the <code>CGINCLUDE</code> block.</p>
+<pre><code class="language-glsl">geometryOutput GenerateGrassVertex(float3 vertexPosition, float width, float height, float2 uv, float3x3 transformMatrix)
+{
+	float3 tangentPoint = float3(width, 0, height);
+
+	float3 localPosition = vertexPosition + mul(transformMatrix, tangentPoint);
+	return VertexOutput(localPosition, uv);
+}</code></pre>
+			<p>This function carries the same responsibilities as our the arguments we currently pass in to <code>VertexOutput</code> to generate our blade vertices. Taking in a position, width, and height, it correctly transforms the vertex by the provided matrix, and assigns it a UV coordinate. We'll update our existing code with this function to ensure it is properly working.</p>
+<pre><code class="language-glsl">// Update the existing code outputting the vertices.
+triStream.Append(</code><span class="modified">GenerateGrassVertex(pos, width, 0, float2(0, 0), transformationMatrixFacing)</code></span><code class="language-glsl">);
+triStream.Append(</code><span class="modified">GenerateGrassVertex(pos, -width, 0, float2(1, 0), transformationMatrixFacing)</code></span><code class="language-glsl">);
+triStream.Append(</code><span class="modified">GenerateGrassVertex(pos, 0, height, float2(0.5, 1), transformationMatrix)</code></span><code class="language-glsl">);</code></pre>
+			<p>With our function working correctly, we are ready to move our vertex generation code into a <code>for</code> loop. Add the following below the line declaring <code>float width</code>.</p>
+<pre><code class="language-glsl">for (int i = 0; i &lt; BLADE_SEGMENTS; i++)
+{
+	float t = i / (float)BLADE_SEGMENTS;
+}</code></pre>
+			<p>We declare a loop that will run once for each segment in the blade. Inside the loop, we add the variable <code>t</code>. This variable will hold a value, from 0...1, representing how far we are along the blade. We will use this value to calculate the width and height of the segment in each iteration of the loop, which we can do now.</p>
+<pre><code class="language-glsl">// Add below the line declaring float t.
+float segmentHeight = height * t;
+float segmentWidth = width * (1 - t);</code></pre>
+			<p>As we move up the blade, the height increases, and the width decreases (as it tapers inwards). We can now add <code>GenerateGrassVertex</code> calls to our loop to add the vertices to the triangle stream. We'll also make a single call to <code>GenerateGrassVertex</code> outside of the loop to add the vertex at the tip.</p>
+<pre><code class="language-glsl">// Add below the line declaring float segmentWidth.
+float3x3 transformMatrix = i == 0 ? transformationMatrixFacing : transformationMatrix;
+
+triStream.Append(GenerateGrassVertex(pos, segmentWidth, segmentHeight, float2(0, t), transformMatrix));
+triStream.Append(GenerateGrassVertex(pos, -segmentWidth, segmentHeight, float2(1, t), transformMatrix));
+
+…
+
+// Add just below the loop to insert the vertex at the tip of the blade.
+triStream.Append(GenerateGrassVertex(pos, 0, height, float2(0.5, 1), transformationMatrix));
+
+…
+
+// Remove the existing calls to triStream.Append.
+</code><span class="removed">triStream.Append(GenerateGrassVertex(pos, width, 0, float2(0, 0), transformationMatrixFacing));
+triStream.Append(GenerateGrassVertex(pos, -width, 0, float2(1, 0), transformationMatrixFacing));
+triStream.Append(GenerateGrassVertex(pos, 0, height, float2(0.5, 1), transformationMatrix));</code></pre>
+				<p>Note the line declaring <code>float3x3 transformMatrix</code>—here we select between our two transformation matrices, taking <code>transformationMatrixFacing</code> for the vertices at the base, and <code>transformationMatrix</code> for all others.</p>
+				<div class="figure">
+					<img src="/media/tutorials/grass/blade-segments.png"></img>
+				</div>
+				<p>The blades of grass are now divided into multiple segments, but the surface of the blade is still planar—the newly added triangles are not yet being used. We'll add some curvature to the blade by offsetting the <strong>Y</strong> position of the vertices. First, we'll need to modify our <code>GenerateGrassVertex</code> function to take in a <strong>Y</strong> offset we'll call <code>forward</code>.</p>
+<pre><code class="language-glsl">// Update the function signature of GenerateGrassVertex.
+geometryOutput GenerateGrassVertex(float3 vertexPosition, float width, float height, </code><span class="modified">float forward</code></span><code class="language-glsl">, float2 uv, float3x3 transformMatrix)
+
+…
+
+// Modify the Y coordinate assignment of tangentPoint.
+float3 tangentPoint = float3(width, </code><span class="modified">forward</code></span><code class="language-glsl">, height);</code></pre>
+				<p>To calculate the forward offset of each vertex, we will plug <code>t</code> into the <code>pow</code> function. By taking <code>t</code> to a power, its influence on the forward offset will be <em>non-linear</em>, shaping the blade of grass into a curve.</p>
+<pre><code class="language-glsl">// Add as new properties.
+_BladeForward("Blade Forward Amount", Float) = 0.38
+_BladeCurve("Blade Curvature Amount", Range(1, 4)) = 2
+
+…
+
+// Add to the CGINCLUDE block.
+float _BladeForward;
+float _BladeCurve;
+
+…
+
+// Add inside the geometry shader, below the line declaring float width.
+float forward = rand(pos.yyz) * _BladeForward;
+
+…
+
+// Add inside the loop, below the line declaring segmentWidth.
+float segmentForward = pow(t, _BladeCurve) * forward;
+
+…
+
+// Modify the GenerateGrassVertex calls inside the loop.
+triStream.Append(GenerateGrassVertex(pos, segmentWidth, segmentHeight, </code><span class="modified">segmentForward</code></span><code class="language-glsl">, float2(0, t), transformMatrix));
+triStream.Append(GenerateGrassVertex(pos, -segmentWidth, segmentHeight, </code><span class="modified">segmentForward</code></span><code class="language-glsl">, float2(1, t), transformMatrix));
+
+…
+
+// Modify the GenerateGrassVertex calls outside the loop.
+triStream.Append(GenerateGrassVertex(pos, 0, height, </code><span class="modified">forward</code></span><code class="language-glsl">, float2(0.5, 1), transformationMatrix));</code></pre>
+			<p>The above is a large chunk of code, but all of the work done is similar to what was done for the width and height of the blade. Lower values of <code>_BladeForward</code> and <code>_BladeCurve</code> will result in a more organized, well tended field of grass, while larger values will have the opposite effect.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-curved.png"></img>
+			</div>
+			<h2>7. Lighting and shadows</h2>
+			<p>As a final step to complete this shader, we will add the ability to <strong>cast</strong> and <strong>receive</strong> shadows. We will also add some simple illumination, received from the main directional light.</p>
+			<h3>7.1 Casting shadows</h3>
+			<p>In order to cast shadows in Unity, a second pass must be added to the shader. This pass will be used by shadow casting lights in the scene to render the grass's depth to their <a href="https://en.wikipedia.org/wiki/Shadow_mapping" target="_blank">shadow map</a>. This means our geometry shader will need to also run in the shadow pass to ensure the grass blades exist to cast shadows.</p>
+			<p>Since our geometry shader is written inside <code>CGINCLUDE</code> blocks, it is available for us to use in any passes in the file. We'll create a second pass that will make use of all of the same shaders as our initial pass, with the exception of the fragment shader—we'll define a new one that is populated with a macro that handles the output for us.</p>
+<pre><code class="language-glsl">// Add below the existing Pass.
+Pass
+{
+	Tags
+	{
+		"LightMode" = "ShadowCaster"
+	}
+
+	CGPROGRAM
+	#pragma vertex vert
+	#pragma geometry geo
+	#pragma fragment frag
+	#pragma hull hull
+	#pragma domain domain
+	#pragma target 4.6
+	#pragma multi_compile_shadowcaster
+
+	float4 frag(geometryOutput i) : SV_Target
+	{
+		SHADOW_CASTER_FRAGMENT(i)
+	}
+
+	ENDCG
+}</pre></code>
+			<p>Other than having a new fragment shader, there are a couple key differences in this pass. Our <code>LightMode</code> tag is set to <code>ShadowCaster</code>, instead of <code>ForwardBase</code>—this communicates to Unity that this pass should be used for rendering the object into shadow maps. We also have the <code>multi_compile_shadowcaster</code> preprocessor directive. This ensures that the shader compiles all necessary variants required for shadow casting.</p>
+			<p>Set the <code>Fence</code> game object to be <strong>active</strong> in the scene; this gives us a surface for the blades to cast shadows onto.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-casting-shadows.png"></img>
+			</div>
+			<h3>7.2 Receiving shadows</h3>
+			<p>After Unity renders a shadow map from the perspective of a shadow casting light, it will run a pass "collecting" the shadows into a <strong>screen space</strong> texture. To sample this texture, we'll need to calculate the screen space positions of our vertices, and pass them into the fragment shader.</p>
+<pre><code class="language-glsl">// Add to the geometryOutput struct.
+unityShadowCoord4 _ShadowCoord : TEXCOORD1;
+
+…
+
+// Add to the VertexOutput function, just above the return call.	
+o._ShadowCoord = ComputeScreenPos(o.pos);</code></pre>
+			<p>In the <code>ForwardBase</code> pass's fragment shader, we can use a macro to retrieve a <code class="variable">float</code> value representing whether the surface is in shadows or not. This value is in the 0...1 range, where 0 is fully shadowed, and 1 fully illuminated.</p>
+			<aside>
+				<div class="aside-button">
+					<h4>Why is the screen space UV coordinate named _ShadowCoord? This doesn't follow previous conventions.</h4>
+				</div>
+				<div class="aside-content">
+					<p>Many of Unity's built-in shader macros make assumptions about the names of certain fields in the various shader structures (some even make assumptions about the names of the structures themselves). A macro we use below, <code>SHADOW_ATTENUATION</code>, is no different. If we retrieve the source for this macro from <code>Autolight.cginc</code>, we can see it requires the shadow coordinate to have a specific name.</p>
+					<pre><code class="language-glsl"
+					>#define SHADOW_ATTENUATION(a) unitySampleShadow(a._ShadowCoord)</code></pre>
+					<p>If we wanted to have a different name for our coordinate, or we were required to for any reason, we could simply copy the above definition into our own shader.</p>
+				</div>
+			</aside>
+<pre><code class="language-glsl">// Add to the ForwardBase pass's fragment shader, replacing the existing return call.
+return SHADOW_ATTENUATION(i);
+
+</code><span class="removed">return lerp(_BottomColor, _TopColor, i.uv.y);</code></span></pre>
+			<p>Finally, we need to ensure our shader is correctly configured to receive shadows. To do this, we will add a preprocessor directive to the <code>ForwardBase</code> pass to compile all necessary shader variants.</p>
+<pre><code class="language-glsl">// Add to the ForwardBase pass's preprocessor directives, below #pragma target 4.6.
+#pragma multi_compile_fwdbase</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-shadowcast.png"></img>
+			</div>
+			<p>Zooming in, we can see some artifacts on the surface of the blades; this is caused by individual blades casting shadows on themselves. We can correct this by applying <em>linear bias</em>, or translating the clip space positions of the vertices slightly away from the screen. We will use a Unity macro for this, and include it in an <code>#if</code> statement to ensure the operation is only run during the shadow pass.</p>
+<pre><code class="language-glsl">// Add at the end of the VertexOutput function, just above the return call.
+#if UNITY_PASS_SHADOWCASTER
+	// Applying the bias prevents artifacts from appearing on the surface.
+	o.pos = UnityApplyLinearShadowBias(o.pos);
+#endif</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/shadow-bias.gif"></img>
+				<div class="figure-info">After applying linear shadow bias, banding artifacts are removed from the surface of the triangles.</div>
+			</div>
+			<aside>
+				<div class="aside-button">
+					<h4>Why are there artifacts around the edges of the blades that are shadowed?</h4>
+				</div>
+				<div class="aside-content">
+					<img src="/media/tutorials/grass/shadow-artifacts.png"></img>
+					<p>Even when multisample anti-aliasing (<strong>MSAA</strong>) is enabled, Unity <em>does not</em> apply anti-aliasing to the scene's depth texture, which is used when constructing the screen-space shadow map. Therefore, when the anti-aliased scene samples the non-anti-aliased shadow map, artifacts occur.</p>
+					<p>One solution is to use anti-aliasing applied during post processing, which is available in <a href="https://github.com/Unity-Technologies/PostProcessing" target="_blank">Unity's post processing package</a>. However, sometimes post-processed anti-aliasing is not always appropriate (such as when working with virtual reality); <a href="https://forum.unity.com/threads/fixing-screen-space-directional-shadows-and-anti-aliasing.379902/" target="_blank">this thread on the Unity forums</a> has a good discussion for alternative solutions to this problem.</p>
+				</div>
+			</aside>
+			<h3>7.3 Lighting</h3>
+			<p>We will implement lighting using the following common, very simple algorithm to calculate diffuse illumination.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/NdotL.gif" class="tiny"></img>
+			</div>
+			<p>...where <strong>N</strong> is the normal of the surface, <strong>L</strong> is the normalized direction of the main directional light, and <strong>I</strong> is the calculated illumination. We will <strong>not</strong> implement specular lighting in this tutorial.</p>
+			<p>Right now, the vertices in our blades of grass do not have any normals assigned. Just like we did for the positions of the vertices, we will first calculate the normals in <strong>tangent space</strong>, and then transform them to local.</p>
+			<p>When the <strong>Blade Curvature Amount</strong> is set to <strong>1</strong>, the blades of grass all face the same direction in tangent space: directly backwards on the <strong>Y</strong> axis. As a first pass on our solution, we'll calculate the normal assuming no curvature.</p>
+<pre><code class="language-glsl">// Add to the GenerateGrassVertex function, belowing the line declaring tangentPoint.
+float3 tangentNormal = float3(0, -1, 0);
+float3 localNormal = mul(transformMatrix, tangentNormal);</code></pre>
+			<p>The <code>tangentNormal</code>, defined as directly backwards on the <strong>Y</strong> axis, is transformed by the same matrix we used to convert our tangent points to local space. We can now pass this through to the <code>VertexOutput</code> function, and then to the <code>geometryOutput</code> structure.</p>
+<pre><code class="language-glsl">// Modify the return call in GenerateGrassVertex.
+return VertexOutput(localPosition, uv, </code><span class="modified">localNormal</code></span><code class="language-glsl">);
+
+…
+
+// Add to the geometryOutput struct.
+float3 normal : NORMAL;
+
+…
+
+// Modify the existing function signature.
+geometryOutput VertexOutput(float3 pos, float2 uv, </code><span class="modified">float3 normal</code></span><code class="language-glsl">)
+
+…
+
+// Add to the VertexOutput function to pass the normal through to the fragment shader.
+o.normal = UnityObjectToWorldNormal(normal);</pre></code>
+			<p>Note that we transform the normal to <strong>world space</strong> before we output it; Unity surfaces the main directional light's direction to shaders in world space, making this transformation necessary.</p>
+			<p>We can now visualize the normals in our <code>ForwardBase</code> fragment shader to verify our work.</p>
+<pre><code class="language-glsl">// Add to the ForwardBase fragment shader.
+float3 normal = facing > 0 ? i.normal : -i.normal;
+
+return float4(normal * 0.5 + 0.5, 1);
+
+// Remove the existing return call.
+</code><span class="removed">return SHADOW_ATTENUATION(i);</code></span></pre>
+			<p>Because our shader has <code>Cull</code> set to <code>Off</code>, both sides of the blade of grass are rendered. To ensure the normal is facing the correct direction, we make use of the optional <code>VFACE</code> parameter we have included in the fragment shader.</p>
+			<p>The <code>fixed facing</code> argument will return a <strong>positive</strong> number if we are viewing the front of the surface, and a <strong>negative</strong> if we are viewing the back. We use it above to invert the normal when necessary.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-normal.png"></img>
+			</div>
+			<p>When <strong>Blade Curvature Amount</strong> is greater than 1, each vertex will have its tangent <strong>Z</strong> position offset by the <code>forward</code> amount passed in to the <code>GenerateGrassVertex</code> function. We'll use this value to proportionally scale the <strong>Z</strong> axis of our normals.</p>
+<pre><code class="language-glsl">// Modify the existing line in GenerateGrassVertex.
+float3 tangentNormal = </code><span class="modified">normalize(float3(0, -1, forward))</code></span><code class="language-glsl">;</code></pre>
+			<p>Lastly, we'll add some code to the fragment shader to put shadows, directional light, and ambient light all together. For a more detailed look at implementing custom lighting in shaders, I would recommend taking a look at my <a href="/articles/toon-shader.html" target="_blank">toon shader tutorial</a>.</p>
+<pre><code class="language-glsl">// Add to the ForwardBase fragment shader, below the line declaring float3 normal.
+float shadow = SHADOW_ATTENUATION(i);
+float NdotL = saturate(saturate(dot(normal, _WorldSpaceLightPos0)) + _TranslucentGain) * shadow;
+
+float3 ambient = ShadeSH9(float4(normal, 1));
+float4 lightIntensity = NdotL * _LightColor0 + float4(ambient, 1);
+float4 col = lerp(_BottomColor, _TopColor * lightIntensity, i.uv.y);
+
+return col;
+
+// Remove the existing return call.
+</code><span class="removed">return float4(normal * 0.5 + 0.5, 1);</code></span></pre>
+			<div class="figure">
+				<img src="/media/tutorials/grass/grass-complete.png"></img>
+			</div>
+			<h2>Conclusion</h2>
+			<p>In this tutorial, the grass covers a small 10x10 area. To extend this shader to cover vast, open fields, some optimizations would likely be necessary to keep it performant. Distance-based tessellation could be used to have fewer blades of grass drawn further from the camera. As well, at further distances, instead of drawing each blade individually, clumps of grass could be drawn using a single quad that is texture mapped.</p>
+			<div class="figure">
+				<img src="/media/tutorials/grass/unity-terrain-grass.png" class="medium"></img>
+				<div class="figure-info">A grass texture included as part of Unity's <a href="https://assetstore.unity.com/packages/essentials/asset-packs/standard-assets-32351" target="_blank">Standard Assets</a> package. Many blades of grass are drawn onto a single quad, reducing triangle count.</div>
+			</div>
+			<p>For improving on or extending the lighting and shading, while it is not natively possible to use geometry shaders with surface shaders, if it's desirable to use Unity's standard lighting model, <a href="https://github.com/keijiro/StandardGeometryShader" target="_blank">this GitHub repository</a> demonstrates a workaround by using deferred rendering and manually filling the G-Buffers.</p>
+			<a class="button" href="https://github.com/IronWarrior/UnityGrassGeometryShader" target="_blank">
+				<span>View source</span>
+				<span class="button-type">GitHub repository</span>
+			</a>
+			<h3>Ad. Interaction</h3>
+			<p>Without interaction, graphical effects can feel static or hollow to players. As this tutorial is already very long, I abstained from including a section about how to have objects in the world interact with and influence the grass.</p>
+			<p>Naïvely, an implementation for interactable grass would contain two components: something in the game world that is capable of <strong>passing data</strong> into the shader to tell it what part of the grass is being interacted with, and some code in the shader to <strong>interpret</strong> that data.</p>
+			<p>An example of how to do this with water can be <a href="https://www.patreon.com/posts/24192529" target="_blank">found here</a>. This could be adapted to work with grass; instead of drawing ripples where the character is, the blades of grass could be rotated downward to simulate the footstep impacts.</p>			

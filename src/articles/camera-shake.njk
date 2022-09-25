@@ -1,0 +1,346 @@
+---
+layout: article.njk
+title: Unity Camera Shake Tutorial
+name: Camera Shake
+date: 2019-02-28
+thumbnail: /media/tutorials/camera-shake/camera-shake-thumb.gif
+tool: Unity engine
+toolSuffix: 2018.3
+duration: 35
+description: Learn to write a camera shake script Unity engine. Use pseudo-random Perlin noise to generate an impact shake when explosions occur near the camera.
+ogTitle: Unity Camera Shake Tutorial at Roystan
+---
+
+
+			<div class="figure-header">
+				<div class="video-gfycat figure-header-shadowed">
+					<iframe src='https://gfycat.com/ifr/RealRecklessIbex?hd=1' frameborder='0' scrolling='no' width='100%' height='100%' allowfullscreen>
+					</iframe>
+				</div>
+			</div>
+			<div class="tutorial-info">
+				<p><span class="drop">You will learn</span> to write a script to simulate camera shake. You will use Perlin noise to control the frequency and magnitude of the shake effect.</p>
+			</div>
+			<p><strong>Camera shake</strong> can be a powerful tool to communicate impacts or shockwaves to players. This article will describe step-by-step techniques to implement a dynamic shake effect controlled by <a href="https://en.wikipedia.org/wiki/Perlin_noise" target="_blank">Perlin noise</a>, based on <a href="https://www.youtube.com/watch?v=tu-Qe66AvtY" target="_blank">this GDC talk</a> by <a href="http://www.eiserloh.net/bio/" target="_blank">Squirrel Eiserloh</a>. While the goal of this article will be to implement camera shake, the same techniques can be used to apply shake motions to any kind of object or UI element.</p>
+			<div class="project-info clearfix">
+				<div class="project-info-note"><strong>The completed project</strong> is provided at the end of the article. Note that it also contains a large amount of comments in the C# files to aid understanding.</div>
+			</div>
+			<h3>Prerequisites</h3>
+			<p>To complete this tutorial, you will need a working knowledge of Unity engine and C#.</p>
+			<a class="button" href="https://github.com/IronWarrior/UnityCameraShake/archive/skeleton.zip">
+				<span>Download starter project</span>
+				<span class="button-type">.zip</span>
+			</a>
+			<div class="patreon-info">
+				<p>These tutorials are made possible, and kept <strong>free</strong> and <strong>open source</strong>, by your support. If you enjoy them, please consider becoming my <a href="https://www.patreon.com/bePatron?u=10821388" target="_blank">patron through Patreon</a>.</p> 
+				<a href="https://www.patreon.com/bePatron?u=10821388" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+			</div>
+			<h2>Getting started</h2>
+			<p>Download the starter project provided above, open it in the Unity editor and open the <code>Main</code> scene. If you expand the <code>CameraContainer</code> object and select the <code>Camera</code>, you will see the <code class="class">ShakeableTransform</code> script attached to it. This script will control the camera shake effect; open it in your preferred code editor.</p>
+			<h2>1. Random motion</h2>
+			<p>As our camera exists in 3D space, we have available <b>six axes</b> we can shake it on: three <em>translational</em> (movement) and three <em>angular</em> (rotation). We will begin with some simple random movement on the <strong>X</strong> axis. Add the following to the <code>Update</code> method of <code class="class">ShakeableTransform</code>.</p>
+<pre><code class="language-csharp">transform.localPosition = new Vector3(Random.Range(-1, 1), 0, 0) * 0.3f;</code></pre>
+			<p>We assign a random value between <code>-0.2</code> and <code>0.2</code> to the <strong>X</strong> position of the camera, leaving the other two dimensions at 0.</p>
+			<div class="figure">
+				<div class="container">
+					<div class="toggle-gif">
+						<div class="play-button">
+							<div></div>
+						</div>
+						<img src="/media/tutorials/camera-shake/horizontal-random-shake-thumb.png"></img>
+						<img src="/media/tutorials/camera-shake/horizontal-random-shake.gif"></img>
+					</div>
+				</div>
+			</div>
+			<p>This has actually produced a fairly effective result. We will add the <strong>Y</strong> and <strong>Z</strong> axes to see the full output. Replace the previous line of code with the following.</p>
+<pre><code class="language-csharp">transform.localPosition = new Vector3(Random.Range(-1, 1), </code><span class="modified"><code>Random.Range(-1, 1), Random.Range(-1, 1)) * 0.3f;</code></span></pre>
+			<div class="figure">
+				<div class="container">
+					<div class="toggle-gif">
+						<div class="play-button">
+							<div></div>
+						</div>
+						<img src="/media/tutorials/camera-shake/horizontal-random-shake-thumb.png"></img>
+						<img src="/media/tutorials/camera-shake/random-shake.gif"></img>
+					</div>
+				</div>
+			</div>
+			<p>All three axes together create a convincing camera shake. For some applications, this might be a satisfactory enough solution (angular shake can be added in the same manner). However, this method has some shortcomings: a <strong>completely new random position</strong> is generated and immediately jumped to <strong>each frame</strong>; there is no interpolation between the new position and the old.</p>
+			<p>Increasing the scaling factor from <code>0.2f</code> to a larger number, like <code>1</code> or <code>2</code>, makes this more apparent. This can create overly disjointed motion, and makes it impossible to control the <em>speed</em> of the camera shake.</p>
+			<div class="figure">
+				<div class="container">
+					<div class="toggle-gif">
+						<div class="play-button">
+							<div></div>
+						</div>
+						<img src="/media/tutorials/camera-shake/horizontal-random-shake-thumb.png"></img>
+						<img src="/media/tutorials/camera-shake/random-shake-large.gif"></img>
+					</div>
+				</div>
+				<div class="figure-info">Setting the scaling factor to <strong>2</strong> creates jumps between the camera's position each frame, making for a very disorienting effect.</div>
+			</div>
+			<p>To resolve this, we will need to calculate random values that maintain <em>continuity</em>—in that the previous values influence the next—to prevent large jumps. We will achieve this using <strong>Perlin noise</strong>.</p>
+			<h2>2. Perlin noise motion</h2>
+			<p>Our goal is to generate a series of values that appear random but maintain continuity, instead of a completely random value each frame. <strong>Perlin noise</strong> is ideal for this. Unity implements a function to generate Perlin noise from a two-dimensional input in <a href="https://docs.unity3d.com/ScriptReference/Mathf.PerlinNoise.html" target="_blank">Mathf.PerlinNoise</a>.</p>
+			<p>Given a <code class="class">Vector2</code> as input, <code>Mathf.PerlinNoise</code> will return a <em>pseudo-random</em> value in the 0...1 range. The key here is that similar input values will result in a similar output; this is the main advantage over <code>Random.Range</code>, where returned values cannot be controlled by an input.</p>
+			<div class="figure">
+				<div class="container">
+					<div class="toggle-gif">
+						<div class="play-button dark">
+							<div></div>
+						</div>
+						<img src="/media/tutorials/camera-shake/perlin-vs-random-thumb.png"></img>
+						<img src="/media/tutorials/camera-shake/perlin-vs-random.gif"></img>
+					</div>
+				</div>
+				<div class="figure-info">Comparsion of <strong>Random.Range</strong> (left) and <strong>Mathf.PerlinNoise</strong> (right). Note that although the Perlin noise is much smoother, it still generates a chaotic set of a values.</p>
+			</div>
+			<aside>
+				<div class="aside-button">
+					<h4>Why do you say values from Perlin noise are <em>pseudo-random?</em> What does this mean?</h4>
+				</div>
+				<div class="aside-content">
+					<p>Although the values returned by Perlin noise <em>appear</em> random, in that they do not contain recognizable patterns, the function is entirely <strong>deterministic</strong>. This is called <a href="https://en.wikipedia.org/wiki/Pseudorandomness" target="-blank">pseudorandomness</a>.</p>
+					<p>Note that <code>Random.Range</code> is also, in actuality, pseudo-random as well. In fact, outside of using specialized hardware, all random number sequences generated by computer functions can be repeated if the function is provided the same initial state. Unity allows you to control the state of its random number generator with the <a href="https://docs.unity3d.com/ScriptReference/Random-state.html" target="_blank">Random.state</a> property.</p>
+				</div>
+			</aside>
+			<p>We will once again add shake to the <strong>X</strong> axis, but this time using Perlin noise. Replace the existing line of code with the following.</p>
+<pre><code class="language-csharp">transform.localPosition = </code><span class="modified"><code>new Vector3(Mathf.PerlinNoise(0, Time.time) * 2 - 1, 0, 0) * 0.5f;</code></span></pre>
+			<p>Although <code>Mathf.PerlinNoise</code> takes in a <code class="class">Vector2</code> as input, we keep the <strong>X</strong> value fixed at 0; scrolling through the noise on a single axis—using <code>Time.time</code>—is sufficient input. Note that <code>Mathf.PerlinNoise</code> returns a value in the 0...1 range; we transform it into the -1...1 range before using the value.</p>
+			<div class="figure">
+				<div class="container">
+					<div class="toggle-gif">
+						<div class="play-button">
+							<div></div>
+						</div>
+						<img src="/media/tutorials/camera-shake/perlin-shake-slow-thumb.png"></img>
+						<img src="/media/tutorials/camera-shake/perlin-shake-slow.gif"></img>
+					</div>
+				</div>
+			</div>
+			<p>This has created smoother motion, but at a significantly slower speed. We will add a new field to control the speed of the shake.</p>
+<pre><code class="language-csharp">// Add as a new field.
+[SerializeField]
+float frequency = 25;
+
+…
+
+// Modify the existing code in Update().
+transform.localPosition = new Vector3(Mathf.PerlinNoise(0, </code><span class="modified"><code>Time.time * frequency</code></span><code class="language-csharp">) * 2 - 1, 0, 0) * 0.5f;</code></pre>
+			<div class="figure">
+				<div class="container">
+					<div class="toggle-gif">
+						<div class="play-button">
+							<div></div>
+						</div>
+						<img src="/media/tutorials/camera-shake/perlin-shake-horizontal-thumb.png"></img>
+						<img src="/media/tutorials/camera-shake/perlin-shake-horizontal.gif"></img>
+					</div>
+				</div>
+			</div>
+			<p>Larger values of <code>frequency</code> will result in faster shaking. Like before, we will add the other two axes in.</p>
+<pre><code class="language-csharp">// Replace the previous line setting transform.localPosition.
+</code><span class="removed"><code>transform.localPosition = new Vector3(Mathf.PerlinNoise(0, Time.time * frequency) * 2 - 1, 0, 0) * 0.5f;</code></span><code class="language-csharp">
+
+transform.localPosition = new Vector3(
+	Mathf.PerlinNoise(0, Time.time * frequency) * 2 - 1,
+	Mathf.PerlinNoise(0, Time.time * frequency) * 2 - 1,
+	Mathf.PerlinNoise(0, Time.time * frequency) * 2 - 1
+) * 0.5f;</code></pre>
+			<p>Since the values returned by <code>Mathf.PerlinNoise</code> are deterministic, running the function with the same inputs for each axis has resulted in all three axes having the same shake value. Setting the <code>frequency</code> to a value of 1 will make it apparent that the camera is travelling in a fixed diagonal path, rather than shaking around randomly. We will resolve this by incrementing the <strong>X</strong> value of our input.</p>
+<pre><code class="language-csharp">transform.localPosition = new Vector3(
+	Mathf.PerlinNoise(0, Time.time * frequency) * 2 - 1,
+	Mathf.PerlinNoise(</code><span class="modified"><code>1</code></span><code class="language-csharp">, Time.time * frequency) * 2 - 1,
+	Mathf.PerlinNoise(</code><span class="modified"><code>2</code></span><code class="language-csharp">, Time.time * frequency) * 2 - 1
+) * 0.5f;</code></pre>
+			<div class="figure">
+				<div class="container">
+					<div class="toggle-gif">
+						<div class="play-button">
+							<div></div>
+						</div>
+						<img src="/media/tutorials/camera-shake/perlin-shake-horizontal-thumb.png"></img>
+						<img src="/media/tutorials/camera-shake/perlin-shake.gif"></img>
+					</div>
+				</div>
+			</div>
+			<p>This has fixed the issue, but created a future potential problem: if there are multiple <code class="class">ShakeableTransform</code> objects in the scene, they will all shake with the exact same motion. This can be averted by calculating a per-instance random seed to further offset the input.</p>
+			
+<pre><code class="language-csharp">// Add as a new field and method.			
+private float seed;
+
+private void Awake()
+{
+	seed = Random.value;
+}
+
+…
+
+// Modify the existing code in Update().
+transform.localPosition = new Vector3(
+	Mathf.PerlinNoise(</code><span class="modified"><code>seed</code></span><code class="language-csharp">, Time.time * frequency) * 2 - 1,
+	Mathf.PerlinNoise(</code><span class="modified"><code>seed + 1</code></span><code class="language-csharp">, Time.time * frequency) * 2 - 1,
+	Mathf.PerlinNoise(</code><span class="modified"><code>seed + 2</code></span><code class="language-csharp">, Time.time * frequency) * 2 - 1
+) * 0.5f;</code></pre>
+			<p>Right now we are scaling the entire shake effect by a constant, <code>0.5</code>. This should be stored in a field and exposed to the inspector. While we could use a <code class="variable">float</code>—as before—if we instead use a <code class="class">Vector3</code>, we will be able to scale each axis individually.</p>
+<pre><code class="language-csharp">// Add as a new field.
+[SerializeField]
+Vector3 maximumTranslationShake = Vector3.one * 0.5f;
+
+…
+
+transform.localPosition = new Vector3(
+	</code><span class="modified"><code>maximumTranslationShake.x * (Mathf.PerlinNoise(seed, Time.time * frequency) * 2 - 1)</code></span><code class="language-csharp">,
+	</code><span class="modified"><code>maximumTranslationShake.y * (Mathf.PerlinNoise(seed + 1, Time.time * frequency) * 2 - 1)</code></span><code class="language-csharp">,
+	</code><span class="modified"><code>maximumTranslationShake.z * (Mathf.PerlinNoise(seed + 2, Time.time * frequency) * 2 - 1)</code></span><code class="language-csharp">
+)</code><span class="removed"> * 0.5f</code></span><code>;</code></pre>
+			<p>Up until now, we have only implemented translational shake. Before going any further, we will add in angular shake using the same techniques.</p>
+<pre><code class="language-csharp">// Add as a new field.
+[SerializeField]
+Vector3 maximumAngularShake = Vector3.one * 2;
+
+…
+
+// Add below the code assigning transform.position.
+transform.localRotation = Quaternion.Euler(new Vector3(
+	maximumAngularShake.x * (Mathf.PerlinNoise(seed + 3, Time.time * frequency) * 2 - 1),
+	maximumAngularShake.y * (Mathf.PerlinNoise(seed + 4, Time.time * frequency) * 2 - 1),
+	maximumAngularShake.z * (Mathf.PerlinNoise(seed + 5, Time.time * frequency) * 2 - 1)
+));</code></pre>
+			<p>Shaking with both movement and rotation is not always necessary. For 3D, it is often undesirable to include translational shake, as the movement can cause the camera to clip through nearby objects.</p>
+			<h2>3. Shaking from trauma</h2>
+			<p>Right now, the camera shakes continuously without any outside input. While this might be appropriate for an earthquake or similar scene, it's often desirable to have the camera shake from nearby impacts or effects. To accomplish this, we will control the camera's shake magnitude with a value called <strong>trauma</strong>.</p>
+			<p><strong>Trauma</strong> will be a <code class="variable">float</code> value in the 0...1 range that will be multiplied into our shake strength. As well, trauma will be <strong>constantly decreasing</strong>, allowing the camera to recover from impacts when they occur.</p>
+<pre><code class="language-csharp">// Add as a new field.
+[SerializeField]
+float recoverySpeed = 1.5f;
+	
+…
+	
+// We set trauma to 1 to trigger an impact when the scene is run,
+// for debug purposes. This will later be changed to initialize trauma at 0.
+private float trauma = 1;
+
+…
+
+// Modify the existing code in Update().
+transform.localPosition = new Vector3(
+	maximumTranslationShake.x * (Mathf.PerlinNoise(seed, Time.time * frequency) * 2 - 1),
+	maximumTranslationShake.y * (Mathf.PerlinNoise(seed + 1, Time.time * frequency) * 2 - 1),
+	maximumTranslationShake.z * (Mathf.PerlinNoise(seed + 2, Time.time * frequency) * 2 - 1)
+) </code><span class="modified"><code>* trauma</code></span><code class="language-csharp">;
+
+transform.localRotation = Quaternion.Euler(new Vector3(
+	maximumAngularShake.x * (Mathf.PerlinNoise(seed + 3, Time.time * frequency) * 2 - 1),
+	maximumAngularShake.y * (Mathf.PerlinNoise(seed + 4, Time.time * frequency) * 2 - 1),
+	maximumAngularShake.z * (Mathf.PerlinNoise(seed + 5, Time.time * frequency) * 2 - 1)
+) </code><span class="modified"><code>* trauma</code></span><code class="language-csharp">);
+
+trauma = Mathf.Clamp01(trauma - recoverySpeed * Time.deltaTime);</code></pre>
+			<p>Running the scene now, you will see the shake intensity fade away over time. The larger a <code>recoverySpeed</code>, the shorter impacts will last.</p>
+			<div class="figure">
+				<div class="container">
+					<div class="toggle-gif">
+						<div class="play-button">
+							<div></div>
+						</div>
+						<img src="/media/tutorials/camera-shake/shake-trauma-thumb.png"></img>
+						<img src="/media/tutorials/camera-shake/shake-trauma.gif"></img>
+					</div>
+				</div>
+			</div>
+			<div class="tip-info">
+				<p>Unity will skip several frames when a scene is played in-editor due to loading. To avoid this, press <span class="unity-button unity-pause-button"></span><strong>Pause</strong> before pressing <span class="unity-button unity-play-button"></span><strong>Play</strong>. This will allow the scene to fully load, at which time you can <span class="unity-button unity-pause-button"></span><strong>Unpause</strong> to run the scene.</p>
+			</div>
+			<p>The camera shake ends very abruptly right now; we can create a smoother falloff by raising <code>trauma</code> to a power.</p>
+<pre><code class="language-csharp">// Add as a new field.
+[SerializeField]
+float traumaExponent = 2;
+			
+…
+			
+// Add to the top of Update().
+float shake = Mathf.Pow(trauma, traumaExponent);
+
+// Modify the existing code.
+transform.localPosition = new Vector3(
+	maximumTranslationShake.x * (Mathf.PerlinNoise(seed, Time.time * frequency) * 2 - 1),
+	maximumTranslationShake.y * (Mathf.PerlinNoise(seed + 1, Time.time * frequency) * 2 - 1),
+	maximumTranslationShake.z * (Mathf.PerlinNoise(seed + 2, Time.time * frequency) * 2 - 1)
+) * </code><span class="modified"><code>shake</code></span><code class="language-csharp">;
+
+transform.localRotation = Quaternion.Euler(new Vector3(
+	maximumAngularShake.x * (Mathf.PerlinNoise(seed + 3, Time.time * frequency) * 2 - 1),
+	maximumAngularShake.y * (Mathf.PerlinNoise(seed + 4, Time.time * frequency) * 2 - 1),
+	maximumAngularShake.z * (Mathf.PerlinNoise(seed + 5, Time.time * frequency) * 2 - 1)
+) * </code><span class="modified"><code>shake</code></span><code class="language-csharp">);</code></pre>
+			<p>The impact itself is currently driven by manually initializing <code>trauma</code> to 1. To allow objects in the world to drive impacts, we will expose the ability to add trauma through a public method. Add the following code to the <code class="class">ShakeableTransform</code> class...</p>
+<pre><code class="language-csharp">// Modify trauma to initialize to 0.
+private float trauma = </code><span class="modified">0</code></span><code class="language-csharp">;
+
+…
+
+// Add at the bottom of the class, just before the closing curly brace.
+public void InduceStress(float stress)
+{
+	trauma = Mathf.Clamp01(trauma + stress);
+}</code></pre>
+			<p>...and add the code below to the <code class="class">Explosion</code> script.</p>
+<pre><code class="language-csharp">// Add at the end of Start().
+target.InduceStress(1);</code></pre>
+			<p>Finally, back in the scene, set the <code>ExplosionNear</code> game object to <strong>active</strong>. This is an explosion particle effect that triggers a short delay after the scene is run.</p>
+			<div class="figure">
+				<div class="container">
+					<div class="video-gfycat">
+						<iframe src='https://gfycat.com/ifr/RegularDishonestArachnid?hd=1' frameborder='0' scrolling='no' width='100%' height='100%' allowfullscreen>
+						</iframe>
+					</div>
+				</div>
+			</div>
+			<p>This is pretty effective; however, it does not take the distance between the explosion and the camera. Set both the <code>ExplosionMiddle</code> and <code>ExplosionFar</code> objects active and run the scene. All three generate the same amount of trauma—we will modify our code to instead factor distance in when applying the impact.</p>
+<pre><code class="language-csharp">// Add as a new field.
+[SerializeField]
+float range = 45;
+		
+…
+		
+// Add just below the GetComponent line in Start().
+float distance = Vector3.Distance(transform.position, target.transform.position);
+float distance01 = Mathf.Clamp01(distance / range);
+
+target.InduceStress(</code><span class="modified">1 - distance01</code></span><code class="language-csharp">);</code></pre>
+				<p>The distance is taken between the explosion's position and the camera's. It is then divided by the maximum radius of the impact to get a value in the 0...1 range. This value is <strong>inverted</strong>, making it so that <code>distance01</code> is maximized when the explosion is directly near the camera, and minimized when it is further away.</p>
+				<div class="figure">
+					<div class="container">
+						<div class="video-gfycat">
+							<iframe src='https://gfycat.com/ifr/CourteousDimpledFrigatebird?hd=1' frameborder='0' scrolling='no' width='100%' height='100%' allowfullscreen>
+							</iframe>
+						</div>
+					</div>
+					<div class="figure-info">The amount of <strong>stress</strong> applied is now modulated by the distance of the explosion from the camera. The amount of shake falls off a bit too much with the current settings; the final explosion is barely felt.</div>
+				</div>
+				<p>This has created a smooth falloff, where distant explosions generate less shaking, but has also resulted in significantly less trauma being applied to the camera. We will resolve this by updating some of the fields on the <code class="class">ShakeableTransform</code>.</p>
+				<p><strong>Maximum Translation Shake</strong> will be set to <code>(1, 1, 1)</code>, <strong>Maximum Angular Shake</strong> to <code>(15, 15, 10)</code> and <strong>Trauma Exponent</strong> to <code>1</code>—the exponential falloff isn't as needed right now. (These are the settings used in the animation at the top of this article.)</p>
+				<p>Before wrapping up, we'll add a field to control the maximum possible stress generated by the explosion, and plug <code>distance01</code> into a simple equation to add some falloff, similar to what we did with <code>trauma</code> in <code class="class">ShakeableTransform</code>.</p>
+<pre><code class="language-csharp">// Add as a new field.
+[SerializeField]
+float maximumStress = 0.6f;
+
+…
+
+// Add immediately below the line declaring distance01.
+float stress = (1 - Mathf.Pow(distance01, 2)) * maximumStress;
+
+target.InduceStress(</code><span class="modified">stress</code></span><code class="language-csharp">);</code></pre>
+			<p>Once again, we use exponentiation to control our falloff, taking <code>distance01</code> to the power of 2. Note that we perform this operation <em>before</em> inverting the value. This creates a convex falloff curve that favours nearby explosions causing more stress than they would with a linear curve; taking the exponentiation after inverting gives the opposite result. Alternatively, we could have used a different smoothing function entirely, like <a href="https://docs.unity3d.com/ScriptReference/Mathf.SmoothStep.html" target="_blank">Mathf.SmoothStep</a>, or manually create the falloff curve using the <a href="https://docs.unity3d.com/ScriptReference/AnimationCurve.html" target="_blank">AnimationCurve</a> class.</p>
+			<div class="figure">
+				<img src="/media/tutorials/camera-shake/curve-comparison.png"></img>
+				<div class="figure-info">Comparison of trauma falloff between inverting <strong>after</strong> taking the power (1 - Mathf.Pow(distance, 2), <span style="color: green">green</span>); inverting <strong>before</strong> taking the power (Mathf.Pow(1 - distance, 2), <span style="color: blue">blue</span>); and <strong>Mathf.Smoothstep</strong> (<span style="color: red">red</span>).</div>
+			</div>
+			<h2>Conclusion</h2>
+			<p>Shaking effects—either generated randomly or through pseudo-random noise—can be used for more than just camera impacts. A lower frequency noise can simulate a handheld camera. UI elements can benefit from shake as well; <a href="https://youtu.be/lDlUVG3doJM?t=11146" target="_blank">added to dialogue text</a>, the jittery motion can create a sense of fear or panic, while player <a href="https://youtu.be/gk29nGBDbuA?t=6" target="_blank">health indicators can shake</a> each time damage is taken.</p>
+			<a class="button" href="https://github.com/IronWarrior/UnityCameraShake" target="_blank">
+				<span>View source</span>
+				<span class="button-type">GitHub repository</span>
+			</a>
+		

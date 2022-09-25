@@ -1,0 +1,17 @@
+---
+layout: layout.njk
+title: Unity Articles - Roystan
+---
+<main class="tutorials-index">
+	<ul class="article-list">
+		{% for article in collections.articles | reverse %}
+		<a href="{{ article.url }}">
+			<h2>{{ article.data.name }} </h2>
+			<h3>&gt&gt using {{ article.data.tool }}</h3>
+			<img src="{{ article.data.thumbnail | url }}" class="figure header-image"></img>
+			<time datetime="">published {{ article.date | date }}</time> 
+		</a>
+		{% endfor %}
+	</ul>
+	<footer></footer>
+</main>

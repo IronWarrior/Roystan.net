@@ -1,0 +1,25 @@
+.unity-button {
+    width: 23px;
+    height: 20px;
+    display: inline-block;
+    background-size: contain;
+    background-repeat: no-repeat;
+    transform: translateY(6.5px);
+    margin-left: 2px;
+    margin-right: 4px;
+}
+
+.unity-play-button {
+    background-image: url("/media/tutorials/icons/unity-play.png");
+}
+
+.unity-pause-button {
+    background-image: url("/media/tutorials/icons/unity-pause.png");
+}
+
+.unity-toggle-effects-button {
+    width: 38px;
+    transform: translateY(5px);
+    background-image: url("/media/tutorials/icons/unity-toggle-effects.png");
+    margin-right: 6px;
+}

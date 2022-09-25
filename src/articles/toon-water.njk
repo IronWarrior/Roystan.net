@@ -1,0 +1,426 @@
+---
+layout: article.njk
+title: Unity Toon Water Shader Tutorial
+name: Toon Water Shader
+date: 2018-12-28
+thumbnail: /media/tutorials/toon-water-complete.png
+tool: Unity engine
+toolSuffix: 2018.3
+duration: 50
+ogTitle: Unity Toon Water Shader Tutorial at Roystan
+description: Learn to write a toon style water shader for Unity engine, complete with waves and shoreline foam.
+---
+
+			<div class="figure-header">
+				<div class="video-gfycat figure-header-shadowed">
+					<iframe src='https://gfycat.com/ifr/AbsoluteTidyAmurminnow?hd=1' frameborder='0' scrolling='no' width='100%' height='100%' allowfullscreen>
+					</iframe>
+				</div>
+			</div>
+			
+{{ macro.articleInfo('to write a toon water shader. You will use data from the depth and normals buffer to generate shoreline foam, and noise and distortion textures to render toon waves') }}
+			<p>Water can be challenging to render and almost always requires a custom shader to bring to life. This is especially true for toon style water.</p>
+			<p>This article will outline techniques to render the most common components of a water shader: <strong>shoreline foam</strong>, <strong>depth-based coloring</strong> and <strong>surface waves</strong>. While this shader is designed for a toon look, the approach presented here can be adapted for any art style.</p>
+
+{{ macro.projectInfo() }}
+
+			<h3>Prerequisites</h3>
+			<p>To complete this tutorial, you will need a working knowledge of Unity engine, and a basic understanding of shader syntax and functionality.</p>
+			
+{{ macro.starterProject('https://github.com/IronWarrior/ToonWaterShader/archive/skeleton_project.zip') }}
+{{ macro.patreonArticlePrompt()}}
+
+			<h2>Getting started</h2>
+			<p>Download the starter project provided above and open it in the Unity editor. Open the <code>Main</code> scene (located at the project root), and open the <code>ToonWater</code> shader (located in the <code>Shaders</code> directory) in your preferred code editor.</p>
+			<p>This file contains about the simplest shader possible: one that outputs the color white. We will build off this shader throughout this article to make it render toon style water.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-starting.png" alt="Unity beach scene with default shader on water"></img>
+			</div>			
+			<h2>1. Depth based color</h2>
+			<p>Water changes color depending on how deep it is, due to it absorbing light that passes through it. To <span title="No pun intended.">reflect</span> this, we will use a <strong>gradient</strong> to control our water's color. What color is outputted from the gradient will be controlled by the <em>depth</em> of the objects under the water.</p>
+			<h3>1.1 Properties and variables</h3>
+			<p>Add the following three properties to the top of the shader.</p>
+<pre><code class="language-glsl">_DepthGradientShallow("Depth Gradient Shallow", Color) = (0.325, 0.807, 0.971, 0.725)
+_DepthGradientDeep("Depth Gradient Deep", Color) = (0.086, 0.407, 1, 0.749)
+_DepthMaxDistance("Depth Maximum Distance", Float) = 1</code></pre>
+			<p>Note that these properties already have some default values filled in; these are the values used for the material in the animated image at the top of this article.</p>
+			<p>We define our gradient with two colors, one for when our water is at its most shallow (i.e., when the object behind it is <em>nearly</em> touching the surface), and one for when it is at its deepest. Since it's possible that our water could be infinity deep, we add the <code>_DepthMaxDistance</code> property as a cutoff for the gradient—anything deeper than this will no longer change color.</p>
+			<div class="figure">
+				<img src="/media/tutorials/beach-depth-diagram.png" "Side view drawing of pond demonstrating camera depth"></img>
+				<div class="figure-info">Side view of the beach scene. When the distance between the water and the ground is small (shown in green), the color of the water is lighter. When the distance is large (in red), the water is darker.</div>
+			</div>
+			<p>Before we can implement our gradient, we need to declare our properties in our <code>CGPROGRAM</code>. Add the following immediately above the fragment shader.</p>
+<pre><code class="language-glsl">float4 _DepthGradientShallow;
+float4 _DepthGradientDeep;
+
+float _DepthMaxDistance;
+
+sampler2D _CameraDepthTexture;</pre></code>	
+			<aside>
+				<div class="aside-button">
+					<h4>What are properties? What's a fragment shader? I'm feeling lost!</h4>
+				</div>
+				<div class="aside-content">
+					<p>This article won't explain the fundamentals of shaders. If you are new to writing shaders in Unity, I would recommend checking out <a href="https://catlikecoding.com/unity/tutorials/rendering/part-2/" target="_blank">this article on Catlike Coding</a>.</p>
+				</div>
+			</aside>
+			<h3>1.2 Calculating water depth</h3>
+			<p>You might have noticed in the code block above the line declaring a <code class="variable">sampler2D</code> named <code>_CameraDepthTexture</code>. This declaration gives our shader access to a variable <em>not declared</em> in our properties: the camera's <strong>depth texture</strong>. A depth texture is a <em>greyscale</em> image that colors objects based on their distance from the camera. In Unity, objects closer to the camera are more white, while objects further away are darker.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-depth.png"></img>
+				<div class="figure-info">Depth texture for the beach scene, excluding the water. Note that the <strong>Far</strong> plane of the camera is much smaller than normal to better highlight the difference in greyscale values.</div>
+			</div>
+			<p>This <code>_CameraDepthTexture</code> variable is available globally to all shaders, but <strong>not</strong> by default; if you select the <code>Camera</code> object in the scene, you'll notice that it has the script <code>CameraDepthTextureMode</code> attached, with it's inspector field set to <code>Depth</code>. This script instructs the camera to render the depth texture of the current scene into the above shader variable.</p>
+			<p>The depth texture is a <strong>full-screen</strong> texture, in that it has the same dimensions as the screen we are rendering to. We want to sample this texture at the same position as the current pixel we're rendering. To do this, we'll need to calculate the <em>screen space position</em> of our vertex in the vertex shader, and then pass this value into the fragment shader where we can use it.</p>
+<pre><code class="language-glsl">// Inside the v2f struct.
+float4 screenPosition : TEXCOORD2;
+
+…
+
+// Inside the vertex shader.
+o.screenPosition = ComputeScreenPos(o.vertex);</pre></code>
+			<p>With the screen position accessible through the <code>v2f</code> struct, we can now sample the depth texture. Add the following code to the fragment shader.</p>
+<pre><code class="language-glsl">float existingDepth01 = tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPosition)).r;
+float existingDepthLinear = LinearEyeDepth(existingDepth01);</pre></code>
+			<p>The first line samples the depth texture using <code>tex2Dproj</code> and our screen position. This will return the depth of the surface behind our water, in a range of 0 to 1. This value is <em>non-linear</em>—one meter of depth very close to the camera will be represented by a comparatively larger value in the depth texture than one meter a kilometer away from the camera. The second line converts the non-linear depth to be linear, in world units from the camera.</p>
+			<div class="figure">
+				<img src="https://developer.nvidia.com/sites/default/files/akamai/gameworks/blog/Depthprecision/graph1.jpg"></img>
+				<div class="figure-info">As we move left to right on this graph, further away from the camera, larger distances are represented by smaller values in the depth buffer. Image from <a href="https://developer.nvidia.com/content/depth-precision-visualized" class="inline-link" target="_blank">NVIDIA article on depth precision</a>.</div>
+			</div>
+			<aside>
+				<div class="aside-button">
+					<h4>What is tex2Dproj? How is it different from tex2D?</h4>
+				</div>
+				<div class="aside-content">
+					<p>The two functions are nearly identical. The only difference is that <code>tex2Dproj</code> will divide the input UV's <code>xy</code> coordinates by its <code>w</code> coordinate before sampling the texture. This is to transform the coordinate from an orthographic to a perspective projection.</p>
+					<p>The following code would function identically to <code>tex2Dproj</code>.
+<pre><code class="language-glsl">float existingDepth01 = tex2D(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPosition.xy / i.screenPosition.w)).r;</code></pre>
+				</div>
+			</aside>
+			<p>Because what we care about is how deep this depth value is <em>relative to our water surface</em>, we will also need to know the depth of the water surface. This is conveniently given in the <code>w</code> component of <code>i.screenPosition</code>. Add the following code to take the difference between our two depth values, and output the result.</p>
+<pre><code class="language-glsl">float depthDifference = existingDepthLinear - i.screenPosition.w;
+
+</code><span class="modified"><code>return depthDifference;</code></span></pre>
+			<p>Note that going forward, all existing code that is <strong>modified</strong> will be <span class="modified-inline">highlighted in yellow</span>. New code is <em>not</em> highlighted.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-depth-difference.png"></img>
+			</div>
+			<p>To calculate the color of our water, we're going to use the <code>lerp</code> function, which takes two values (our two gradient colors in this case) and interpolates between them based on a third value in the 0 to 1 range. Right now we have the depth in world units—instead we want to know how deep it is <em>compared to our maximum depth</em>, percentage-wise. We can calculate this value by dividing <code>depthDifference</code> by our maximum depth. Insert the following code just below the line declaring <code>depthDifference</code></p>
+<pre><code class="language-glsl">float waterDepthDifference01 = saturate(depthDifference / _DepthMaxDistance);
+float4 waterColor = lerp(_DepthGradientShallow, _DepthGradientDeep, waterDepthDifference01);
+
+</code><span class="modified"><code>return waterColor;</code></span></pre>
+			<p>The first line above performs the division operation we just discussed. We also pass it through the <code>saturate</code> function—this function clamps the value between 0 and 1, which is the range we need. After that we feed it into the <code>lerp</code> function to calculate the gradient and return our new water color.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-depth-color.png"></img>
+			</div>
+			<h2>2. Waves</h2>
+			<p>Next, we'll add waves to the surface using a <strong>noise texture</strong>. As well, we'll control the visibility of the waves using the depth of our water—this way, we can make the waves very visible at shallow depths to create a shoreline effect.</p>
+			<div class="figure">
+				<img src="/media/tutorials/PerlinNoise.png" class="small"></img>
+				<div class="figure-info"><a href="https://en.wikipedia.org/wiki/Perlin_noise" class="inline-link" target="_blank">Perlin noise</a>, a type of noise. Perlin noise is pseudo-random, and is useful for adding variation to textures to avoid the appearance of unnatural repetition.</div>
+			</div>
+			<h3>2.1 Using noise</h3>
+			<p>While it's possible to generate noise procedurally, for simplicity we're going to just use a texture. Add the following code to set up our shader to take in a new texture property.</p>
+<pre><code class="language-glsl">// As a new property in Properties.
+_SurfaceNoise("Surface Noise", 2D) = "white" {}
+
+…
+
+// Add in the appdata struct.
+float4 uv : TEXCOORD0;
+
+…
+
+// Add in the v2f struct.
+float2 noiseUV : TEXCOORD0;
+
+…
+
+// Above the vertex shader.
+sampler2D _SurfaceNoise;
+float4 _SurfaceNoise_ST;
+
+…
+
+// Inside the vertex shader.
+o.noiseUV = TRANSFORM_TEX(v.uv, _SurfaceNoise);</code></pre>		
+			<p>That's a lot of code, but nothing in there is too exotic. We declare a new texture property and its matching <code class="variable">sampler2D</code> in the shader. Immediately below the <code class="variable">sampler2D</code> we declare another variable, a <code class="variable">float4</code>—Unity automatically populates this value with the <strong>tiling</strong> and <strong>offset</strong> data associated with the texture of the same name. Finally, UV data is declared in <code>appdata</code> and passed from the vertex shader to the fragment shader in the <code>v2f</code> struct.
+			<aside>
+				<div class="aside-button">
+					<h4>What does TRANSFORM_TEX do? Why can't we just pass the UV directly into fragment shader?</h4>
+				</div>
+				<div class="aside-content">
+					<p><code>TRANSFORM_TEX</code> modifies the UV input with provided texture's <strong>tiling</strong> and <strong>offset</strong> settings. As stated above, this data automatically populates a <code class="variable">float4</code> when it has the same name as a texture, with <code>_ST</code> appended to the end.</p>
+					<p>It might seem unintuitive that <code>TRANSFORM_TEX</code> takes in the texture (a <code class="variable">sampler2D</code>) as an argument, but is actually using the scale and offset data of said texture (a <code class="variable">float4</code>). This is because <code>TRANSFORM_TEX</code> is a not actually a function—it is a <strong>macro</strong>. Macros can take arguments just like functions, but instead of passing them in at runtime, the macro just substitutes the code at compile time.</p>
+					<pre><code class="language-glsl">#define TRANSFORM_TEX(tex,name) (tex.xy * name##_ST.xy + name##_ST.zw)</code></pre>
+					<p>Above is the <code>TRANSFORM_TEX</code> macro. This code is found in <code>UnityCG.cginc</code>, which is included in the <strong>Built in shaders</strong> package <a href="https://unity3d.com/get-unity/download/archive" target="_blank">that can be found here</a>.</p>
+				</div>
+			</aside>
+			<p>In the Unity editor, assign the <code>PerlinNoise</code> texture to the <code>Surface Noise</code> slot, and set the <code>Y</code> tiling to 4. Back in the shader, we will sample the noise texture and combine it with our surface color to render waves. Add the following at the end of the fragment shader.</p>
+<pre><code class="language-glsl">float surfaceNoiseSample = tex2D(_SurfaceNoise, i.noiseUV).r;
+
+</code><span class="modified"><code>return waterColor + surfaceNoiseSample;</code></span></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-noise.png"></img>
+			</div>
+			<p>This vaguely resembles waves, but it's too smooth and has far too much variation in brightness to match the toon style we're going for. We will apply a cutoff threshold to get a more binary look.<p>
+<pre><code class="language-glsl">// Add as a new property.
+_SurfaceNoiseCutoff("Surface Noise Cutoff", Range(0, 1)) = 0.777
+
+…
+
+// Matching property variable.
+float _SurfaceNoiseCutoff;
+
+…
+
+// Add in the fragment shader, just after sampling the noise texture.
+float surfaceNoise = surfaceNoiseSample > _SurfaceNoiseCutoff ? 1 : 0;
+
+</code><span class="modified"><code>return waterColor + surfaceNoise;</code></span></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-waves0.png"></img>
+			</div>
+			<p>That looks much better. Any values darker than the cutoff threshold are simply ignored, while any values above are drawn completely white.</p>
+			<h3>2.2 Shoreline foam</h3>
+			<p>We'd like the waves' intensity to increase near the shoreline or where objects intersect the surface of the water, to create a <strong>foam effect</strong>. We'll achieve this effect by modulating the noise cutoff threshold based off the water depth.</p>
+<pre><code class="language-glsl">// Control for what depth the shoreline is visible.
+_FoamDistance("Foam Distance", Float) = 0.4
+
+…
+
+// Matching variable.
+float _FoamDistance;
+
+…
+
+// Add in the fragment shader, above the existing surfaceNoise declaration.
+float foamDepthDifference01 = saturate(depthDifference / _FoamDistance);
+float surfaceNoiseCutoff = foamDepthDifference01 * _SurfaceNoiseCutoff;
+
+float surfaceNoise = surfaceNoiseSample > </code><span class="modified"><code>surfaceNoiseCutoff</code></span><code> ? 1 : 0;</code></pre>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-foam.png"></img>
+			</div>
+			<p>The foam looks great near the shoreline, but it's pretty thin around the object intersections; we'll address this later.</p>
+			<h3>2.3 Animation</h3>
+			<p>Static water isn't very interesting—let's add some <strong>motion</strong> and <strong>distortion</strong> to the waves, starting with motion. We'll achieve this by offsetting the UVs we use to sample the noise texture.</p>
+<pre><code class="language-glsl">// Property to control scroll speed, in UVs per second.
+_SurfaceNoiseScroll("Surface Noise Scroll Amount", Vector) = (0.03, 0.03, 0, 0)
+
+…
+
+float2 _SurfaceNoiseScroll;
+
+…
+
+// Add in the fragment shader, above the existing surfaceNoiseSample line.
+float2 noiseUV = float2(i.noiseUV.x + _Time.y * _SurfaceNoiseScroll.x, i.noiseUV.y + _Time.y * _SurfaceNoiseScroll.y);
+float surfaceNoiseSample = tex2D(_SurfaceNoise, </code><span class="modified"><code>noiseUV</code></span><code>).r;</code></pre>
+			<div class="figure">
+				<div class="container">
+					<div class="video-gfycat">
+						<iframe src='https://gfycat.com/ifr/WhoppingRegalKentrosaurus?hd=1' frameborder='0' scrolling='no' width='100%' height='100%' allowfullscreen>
+						</iframe>
+					</div>
+				</div>
+			</div>
+			<p>Right now the scrolling feels like a sheet of paper being pulled across the surface. We'll add more movement using a <strong>distortion texture</strong>. This distortion texture will be similar to a <a href="https://en.wikipedia.org/wiki/Normal_mapping" target="_blank">Normal map</a>, except with only two channels (red and green) instead of three.</p>
+			<div class="figure">
+				<img src="/media/tutorials/WaterDistortion.png" class="small"></img>
+			</div>
+			<p>We'll interpret these two channels as vectors on a 2 dimensional plane, and use them to pull around our noise texture's UVs.</p>
+<pre><code class="language-glsl">// Two channel distortion texture.
+_SurfaceDistortion("Surface Distortion", 2D) = "white" {}	
+// Control to multiply the strength of the distortion.
+_SurfaceDistortionAmount("Surface Distortion Amount", Range(0, 1)) = 0.27
+
+…
+
+// Matching variables.
+sampler2D _SurfaceDistortion;
+float4 _SurfaceDistortion_ST;
+
+float _SurfaceDistortionAmount;
+
+…
+
+// New data in v2f.
+float2 distortUV : TEXCOORD1;
+
+…
+
+// Add to the vertex shader.
+o.distortUV = TRANSFORM_TEX(v.uv, _SurfaceDistortion);
+
+…
+
+// Add the fragment shader, just above the current noiseUV declaration line.
+float2 distortSample = (tex2D(_SurfaceDistortion, i.distortUV).xy * 2 - 1) * _SurfaceDistortionAmount;
+
+float2 noiseUV = float2(</code><span class="modified"><code>(i.noiseUV.x + _Time.y * _SurfaceNoiseScroll.x) + distortSample.x, (i.noiseUV.y + _Time.y * _SurfaceNoiseScroll.y) + distortSample.y</code></span><code>);</code></pre>
+			<p>We declare our new texture property and add a new UV set as normal. In the fragment shader, we sample the distortion texture—but before adding it to our noiseUV, we multiply it by 2 and subtract 1; as a texture, the <code>x</code> and <code>y</code> values (red and green, respectively) are in the 0...1 range. As a two dimensional vector, however, we want it to be in the -1...1 range. The arithmetic above performs this operation.</p>
+			<div class="figure">
+				<div class="container">
+					<div class="video-gfycat">
+						<iframe src='https://gfycat.com/ifr/HastySoupyErin?hd=1' frameborder='0' scrolling='no' width='100%' height='100%' allowfullscreen>
+						</iframe>
+					</div>
+				</div>
+			</div>
+			<aside>
+				<div class="aside-button">
+					<h4>What's the difference between accessing a float4's rgba components versus xyzw?</h4>
+				</div>
+				<div class="aside-content">
+					<p>Nothing. In the line of code above, we accessed the distortion texture's red and green components using <code>.xy</code>. Alternatively, we could have used <code>.rg</code>; there's no difference either way. I used <code>xy</code> in the example above to help convey that the data would be used as a two dimensional vector, rather than as a color.</p>
+				</div>
+			</aside>
+			<h2>3. Consistent size foam</h2>
+			<p>The foam right now looks great near the shoreline, but is barely visible around the edges of the floating objects. This is because the depth between the shore and the water is quite small, while the depth (from the camera's point of view) between the water and the underwater objects is comparatively larger. Increasing the <code>_FoamDistance</code> to about 0.4 fixes this, but makes the shoreline exceedingly large.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-foam-animation.gif"></img>
+				<div class="figure-info">Increasing the foam distance makes the foam around the objects look correct, but is far too strong for the shoreline.</div>
+			</div>
+			<p>Instead, we'll create a solution that varies the depth that foam is rendered based off the <strong>angle</strong> of the surface below the water. That way, nearly vertical surfaces (like the rocks) can get foam deeper than very flat objects, like shoreline. Ideally, by modulating the foam amount like this they will visually have consistent foam in the final image.</p>
+			<h3>3.1 Rendering the normals buffer</h3>
+			<p>Our goal is to modulate the foam depth value (<code>_FoamDistance</code> in our shader) based on the angle between the normal of the water's surface and the normal of the object between it. To do this, we'll need to have access to a <strong>normals buffer</strong>.</p>		
+			<p>Similar to the depth buffer, this will be a screen-size texture usuable within our shader. However, instead of storing the depth of each pixel, it'll store its <em>normal</em>.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-normal.png"></img>
+				<div class="figure-info">View space normals texture for the beach scene, excluding the water. <strong>View space normals</strong> are the normals of the scene relative to the camera's view.</div>
+			</div>
+			<p>Unity does have the built-in functionality to render out the normals buffer by using the <a href="https://docs.unity3d.com/ScriptReference/DepthTextureMode.DepthNormals.html" target="_blank">DepthNormals</a> depth texture mode. This packs the depth and normals buffer into a single texture (two channels for each buffer). Unfortunately, this results in the depth buffer having too little precision for our purposes; instead, we'll manually render out the normals to a separate texture. The starter project already contains a C# script to do this, <code>NormalsReplacementShader.cs</code>.</p>		
+			<p>This script creates a camera at the same position and rotation as the main camera, except it renders the scene with a <a href="#">Replacement Shader</a>. As well, instead of rendering the scene to the screen, it stores the output to a global shader texture named <code>_CameraNormalsTexture</code>. This texture, like the <code>_CameraDepthTexture</code> we used above, is available to all shaders.</p>
+			<p>Apply this script to the <code>Camera</code> object in the scene. As well, drag the <code>HiddenNormalsTexture</code> shader (in the <code>Shaders</code> folder) into the <code>Normals shader</code> slot. This shader is fairly simple; it outputs the <em>view space</em> normal of the object. View space normals are the normals of the object, relative to the camera's view.</p>
+			<p>If you run the scene now, you'll see that a new camera, <code>Normals camera</code> is automatically spawned as a child to the main camera. If you select this object, you can see in the normals being rendered in the <em>Camera preview</em>. Alternatively, double click the texture in the <code>Target texture</code> slot of the camera to see a larger preview.</p>
+			<h3>3.2 Comparing view space normals</h3>
+			<p>We'll need to calculate the view space normal of the water surface before we can compare it to the normal rendered out to the texture. We can do this in the vertex shader and pass it through to the fragment shader.</p>
+<pre><code class="language-glsl">// Add to appdata.
+float3 normal : NORMAL;
+
+…
+
+// Add to v2f.
+float3 viewNormal : NORMAL;
+
+…
+
+// Add to the vertex shader.
+o.viewNormal = COMPUTE_VIEW_NORMAL;</pre></code>
+			<p>With the view normal available in the fragment shader, we can compare it to the normal of the object beneath the water's surface. We'll sample the normals buffer in the same way we sampled the depth buffer.</p>
+<pre><code class="language-glsl">// As this refers to a global shader variable, it does not get declared in the Properties.
+sampler2D _CameraNormalsTexture;
+
+…
+
+// Add to the fragment shader, just above the existing foamDepthDifference01 line.
+float3 existingNormal = tex2Dproj(_CameraNormalsTexture, UNITY_PROJ_COORD(i.screenPosition));</code></pre>
+			<p>We now have the view normal of the water's surface and the object behind it. We will compare the two using the <a href="https://en.wikipedia.org/wiki/Dot_product" target="_blank">Dot Product</a>.</p>
+			<div class="figure">
+				<img src="/media/tutorials/DotProductVisualization.gif" alt="Displaying dot product and angle between two vectors, one animated rotating 360 degrees" class="medium"></img>
+			</div>
+			<p>The dot product takes in two vectors (of any length) and returns a single number. When the vectors are parallel in the same direction and are <em>unit vectors</em> (vectors of length 1), this number is 1. When they are perpendicular, it returns 0. As you move a vector away from parallel—towards perpendicular—the dot product result will move from 1 to 0 <strong>non-linearly</strong>. Note that when the angle between the vectors is <strong>greater than 90</strong>, the dot product will be negative.</p>
+<pre><code class="language-glsl">// Add to the fragment shader, below the line sampling the normals texture.
+float3 normalDot = saturate(dot(existingNormal, i.viewNormal));</code></pre>
+			<p>We'll use the result of the dot product to control the foam amount. When the dot product is large (near 1), we'll use a lower foam threshold than when it is small (near 0).</p>
+<pre><code class="language-glsl">// Replace the _FoamDistance property with the following two properties.
+_FoamMaxDistance("Foam Maximum Distance", Float) = 0.4
+_FoamMinDistance("Foam Minimum Distance", Float) = 0.04
+
+…
+
+// Replace the _FoamDistance variable with the following two variables.
+float _FoamMaxDistance;
+float _FoamMinDistance;
+
+…
+
+// Add to the fragment shader, above the existing foamDepthDifference01 line.
+float foamDistance = lerp(_FoamMaxDistance, _FoamMinDistance, normalDot);
+float foamDepthDifference01 = saturate(depthDifference / </code><span class="modified"><code>foamDistance</code></span><code>);</code></pre>
+			<p>By saturating the dot product result, we get our value in the 0...1 range, making it easy to pass into the <code>lerp</code> function, same as we did for interpolating the color of the water.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-normalized-foam.png"></img>
+			</div>
+			<h2>4. Transparency</h2>
+			<p>Right now, the water is completely opaque. Although coloring by depth does give the illusion of transparency, the texture of the sand does not at all show through the water. This might actually be desirable for certain kinds of scenes—if you're modelling ocean water, it would make sense for it to be rendered as opaque, since it tends to appear that way due to its immense depth. However, for our little pond scene we are going to add some transparency in to reflect the shallow nature of the water.</p>
+<pre><code class="language-glsl">// Add just inside the SubShader, below its opening curly brace.
+Tags
+{
+	"Queue" = "Transparent"
+}</code></pre>
+			<p>This tells Unity to render objects with this shader after all objects in the <strong>"Geometry"</strong> queue have been rendered; this queue is usually where opaque objects are drawn. This way, we can overlay our transparent water on top of all the opaque objects and blend them together. You can read more about rendering order and queues <a href="https://docs.unity3d.com/Manual/SL-SubShaderTags.html" target="_blank">here</a>.</p>
+<pre><code class="language-glsl">// Add inside the Pass, just above the CGPROGRAM's start.
+Blend SrcAlpha OneMinusSrcAlpha
+ZWrite Off</code></pre>			
+			<p>The <code>Blend</code> line dictates how that blending should occur. We're using a blending algorithm often referred to as <a href="https://en.wikipedia.org/wiki/Blend_modes#Normal_blend_mode" target="_blank">normal blending</a>, and is similar to how software like Photoshop blends two layers.</p>			
+			<p>After that we have <code>ZWrite Off</code>. This prevents our object from being written into the depth buffer; if it <em>was</em> written into the depth buffer, it would <em>completely</em> occlude objects behind it, instead of only partially obscuring them.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-transparent.png"></img>
+			</div>
+			<h2>5. Improved blending</h2>
+			<p>Our water just about matches the final image. Next, we'll add a new property to control the color of the water foam. Although white looks great for this scene, different types of surfaces may require different colored foam.</p>
+<pre><code class="language-glsl">_FoamColor("Foam Color", Color) = (1,1,1,1)
+
+…
+
+float4 _FoamColor;
+
+…
+
+// Add inside the fragment shader, just below the line declaring surfaceNoise.
+float4 surfaceNoiseColor = _FoamColor * surfaceNoise;
+
+return waterColor + </code><span class="modified"><code>surfaceNoiseColor;</code></span></code></pre>
+			<p>This allows us to modify the color of the foam, but if you play with the <code>_FoamColor</code> variable in the scene, you'll see that it gives mixed results. Red foam comes out pink, and completely black foam just leaves a light blue highlight in its place. This is because we are performing <em>additive blending</em> on the two colors used to generate our final value.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-foam-color-animation.gif"></img>
+				<div class="figure-info">Modfying the color of the foam yields mixed results, with red foam turning pink and black foam light blue.</div>
+			</div>
+			<p>As the name implies, additive blending is the result of adding two colors together, creating a brighter result. This is great for objects that emit light, like sparks, explosions or lightning. We are want to blend the foam with the water surface—neither of these emit light, and the result should not be brighter; additive blending is not the right fit for this task.</p>
+			<p>Instead, we'll blend the two colors together using the same algorithm Unity is using to blend our shader with the background, which we referred to above as <strong>normal blending</strong>. If we revisit the following line, we can take a look at how this blending works.</p>
+<pre><code class="language-glsl">Blend SrcAlpha OneMinusSrcAlpha</code></pre>
+			<p><code>Blend</code>, when provided with two parameters, works by multiplying the the output of the shader by the first value (<code>SrcAlpha</code>, or the alpha of the shader output), multiplying the on screen color by the second value (<code>OneMinusSrcAlpha</code> or 1 - alpha of the output), and then adding the two together for the final color. <a href="#">This article by Unity</a> explains it in further detail.</p>
+			<p>We will replicate this as a function in our <code>CGPROGRAM</code>. Add the following above the <code>appdata</code> declaration.</p>
+<pre><code class="language-glsl">float4 alphaBlend(float4 top, float4 bottom)
+{
+	float3 color = (top.rgb * top.a) + (bottom.rgb * (1 - top.a));
+	float alpha = top.a + bottom.a * (1 - top.a);
+
+	return float4(color, alpha);
+}</code></pre>
+			<p>The first line performs the blend operation described above. Because we want our final output to maintain transparency, we also perform the blend on the alpha channel of the colors. We will use this function to blend our final output.</p>
+<pre><code class="language-glsl">// Place in the fragment shader, replacing the code in its place.
+</code><span class="modified"><code>float4 surfaceNoiseColor = _FoamColor;</code></span><code>
+surfaceNoiseColor.a *= surfaceNoise;
+
+</code><span class="modified"><code>return alphaBlend(surfaceNoiseColor, waterColor);</code></span></pre>
+			<p>Note that we only multiply the alpha of the foam now, instead of the entire color.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-foam-color-alpha-animation.gif"></img>
+			</div>
+			<h2>6. Anti-aliasing</h2>
+			<p>We will make one final improvement before completing the shader. If you look closely at the foam, you'll notice the edges are fairly jagged. This is the result of the binary way we perform the cutoff on our noise texture; every pixel either has full alpha, or none at all. Instead, we'll smoothly blend the alpha from zero to one, using the <a href="https://en.wikipedia.org/wiki/Smoothstep" target="_blank">smoothstep</a> function.</p>
+			<div class="figure">
+				<img src="/media/tutorials/toon-water-aliasing.png"></img>
+				<div class="figure-info">Jagged edges where the foam meets the water. To get a clearer view, open this image full-screen in a new tab.</div>
+			</div>
+			<p><code>smoothstep</code> is somewhat similar to <code>lerp</code>. It takes in three values: a <em>lower bound</em>, an <em>upper bound</em> and a value expected to be between these two bounds. <code>smoothstep</code> returns a value between 0 and 1 based on how far this third value is between the bounds. (If it is outside the lower or upper bound, <code>smoothstep</code> returns a 0 or 1, respectively).</p>
+			<div class="figure">
+				<img src="/media/tutorials/smoothstep-lerp-comparison.png"></img>
+				<div class="figure-info">Comparison between <strong>smoothstep</strong> (left) and <strong>lerp</strong> (right). The values are mapped to the greyscale background, as well as the curves in red.</div>
+			</div>
+			<p>Unlike <code>lerp</code>, <code>smoothstep</code> is not linear: as the value moves from 0 to 0.5, it accelerates, and as it moves from 0.5 to 1, it decelerates. This makes it ideal for smoothly blending values, which is how we'll use it below.</p>
+<pre><code class="language-glsl">// Insert just after the CGPROGRAM begins.
+#define SMOOTHSTEP_AA 0.01
+
+…
+
+</code><span class="modified"><code>float surfaceNoise = smoothstep(surfaceNoiseCutoff - SMOOTHSTEP_AA, surfaceNoiseCutoff + SMOOTHSTEP_AA, surfaceNoiseSample);</code></span></pre>
+			<p>The lower and upper bounds we define (the first two parameters of the function) are quite close—they're just far enough apart to add some smoothing to the edges. When <code>surfaceNoiseSample</code> is outside of these bounds, it will return 0 or 1, just like before.</p>
+			<h2>Conclusion</h2>
+			<p>The techniques learned here form the basis for a wide variety of graphical effects. The depth buffer can be used to achieve any kind of distance-based effect, like fog, or a scanner sweep. The normals buffer is used in <a href="https://en.wikipedia.org/wiki/Deferred_shading" target="_blank">deferred shading</a>, where surfaces are lit <em>after</em> all rendering is done as a post process step. Distortion and noise have nearly unlimited applications, and can be used to modify the geometry of meshes, similar to how <a href="https://en.wikipedia.org/wiki/Heightmap" target="_blank">heightmaps work</a>. It's worth experimenting with the settings of the shader to see what can be achieved with it.</p>
+			
+			{{ macro.repo('https://github.com/IronWarrior/ToonWaterShader')}}
