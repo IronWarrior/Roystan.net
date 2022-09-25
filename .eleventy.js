@@ -3,6 +3,7 @@ const syntaxHighlight = require("@11ty/eleventy-plugin-syntaxhighlight");
 const { DateTime } = require("luxon");
 const markdownIt = require("markdown-it");
 const markdownItAnchor = require("markdown-it-anchor");
+const prism = require('markdown-it-prism');
 
 const webUrl = 'https://roystan.net';
 
@@ -38,6 +39,8 @@ module.exports = function(eleventyConfig) {
     linkify: true,
 	breaks: false
   });
+  
+  markdownLibrary.use(prism);
   
   eleventyConfig.setLibrary("md", markdownLibrary);
 
