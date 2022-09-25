@@ -214,7 +214,7 @@ Jumping is now only permitted when our controller is grounded. As well, we set o
 
 ### 3.2 Air momentum
 
-Most platforming games tend to restrict a player's control while they are in the air, typically by reducing how quickly they can accelerate. As well, there isn't usually any automatic deceleration applied when there is no movement input from the player. These design choices help add a feeling of weight and commitment to jumping, making it more exciting. Let's add them to our controller, inserting the code below immediately after gravity is applied, replacing the previous `if</code> statement.
+Most platforming games tend to restrict a player's control while they are in the air, typically by reducing how quickly they can accelerate. As well, there isn't usually any automatic deceleration applied when there is no movement input from the player. These design choices help add a feeling of weight and commitment to jumping, making it more exciting. Let's add them to our controller, inserting the code below immediately after gravity is applied, replacing the previous `if` statement.
 
 ```cs
 float acceleration = grounded ? walkAcceleration : airAcceleration;
