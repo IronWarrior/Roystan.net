@@ -186,7 +186,7 @@ grounded = false;
 …
 
 // Place inside the foreach loop, just after the transform.Translate call.
-if (Vector2.Angle(colliderDistance.normal, Vector2.up) &lt 90 && velocity.y &lt 0)
+if (Vector2.Angle(colliderDistance.normal, Vector2.up) < 90 && velocity.y < 0)
 {
 	grounded = true;
 }
