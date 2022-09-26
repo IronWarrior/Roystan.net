@@ -32,10 +32,9 @@ ogTitle: Unity Grass Geometry Shader Tutorial at Roystan
 				<span>Download starter project</span>
 				<span class="button-type">.zip</span>
 			</a>
-			<div class="patreon-info">
-				<p>These tutorials are made possible, and kept <strong>free</strong> and <strong>open source</strong>, by your support. If you enjoy them, please consider becoming my <a href="https://www.patreon.com/bePatron?u=10821388" target="_blank">patron through Patreon</a>.</p> 
-				<a href="https://www.patreon.com/bePatron?u=10821388" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
-			</div>
+			
+{{ macro.patreonArticlePrompt()}}
+
 			<h2>Getting started</h2>
 			<p>Download the starter project provided above and open it in the Unity editor. Open the <code>Main</code> scene, and open the <code>Grass</code> shader in your preferred code editor.</p>
 			<p>This file contains a shader that outputs the color white, along with some functions we will use throughout this tutorial. You'll notice that these functions, along with the vertex shader, are enclosed in a <code>CGINCLUDE</code> block placed <em>outside</em> the <code>SubShader</code>. Code placed in this block will be <strong>automatically included in any passes</strong> in the shader; this will be useful later, as our shader will have multiple passes.</p>
