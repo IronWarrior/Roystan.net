@@ -6,6 +6,16 @@ https://prismjs.com/download.html#themes=prism-tomorrow&languages=clike+csharp *
  * @author Rose Pritchard
  */
 
+pre
+{
+	line-height: 1.5;
+}
+
+code > mark.add
+{
+	background-color: green;
+}
+
 code[class*="language-"],
 pre[class*="language-"] {
 	color: #ccc;

@@ -243,7 +243,15 @@ a.button
 	margin-bottom: 0.7em;
 }
 
-pre > .modified
+pre .added
+{
+	border: 1px dashed rgba(102,255,51,0.4);
+	padding: 0.1em 0.25em;
+	border-radius: 4px;
+	background:rgba(102,255,51,0.15);
+}
+
+pre .modified
 {
 	border: 1px dashed rgba(255,255,37,0.6);
 	padding: 0.1em 0.25em;
@@ -251,13 +259,12 @@ pre > .modified
 	background:rgba(255,255,37,0.15);
 }
 
-pre > .removed
+pre .removed
 {
 	border: 1px dashed rgba(255,139,139,0.6);
 	padding: 0.1em 0.25em;
 	border-radius: 4px;
-	background:rgba(255,12,12,0.4);
-	text-decoration: line-through;
+	background:rgba(255,12,12,0.25);
 }
 
 .video-gfycat

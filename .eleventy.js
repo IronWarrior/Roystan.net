@@ -1,15 +1,12 @@
 const eleventySass = require("eleventy-sass");
-const syntaxHighlight = require("@11ty/eleventy-plugin-syntaxhighlight");
 const { DateTime } = require("luxon");
 const markdownIt = require("markdown-it");
-const markdownItAnchor = require("markdown-it-anchor");
-const prism = require('markdown-it-prism');
+const customHighlight = require('./custom-highlight');
 
 const webUrl = 'https://roystan.net';
 
 module.exports = function(eleventyConfig) {
   eleventyConfig.addPlugin(eleventySass);
-  eleventyConfig.addPlugin(syntaxHighlight);
   eleventyConfig.addPassthroughCopy("src/media");
   eleventyConfig.addPassthroughCopy("src/js");
   
@@ -31,16 +28,15 @@ module.exports = function(eleventyConfig) {
 		item.template.frontMatter.content = `${macroImport}\n${item.template.frontMatter.content}`
     })
     return collection;
-  });
-	
-	
+  });	
+  	
+  
   let markdownLibrary = markdownIt({
     html: true,
     linkify: true,
-	breaks: false
+	breaks: false,
+	highlight: customHighlight
   });
-  
-  markdownLibrary.use(prism);
   
   eleventyConfig.setLibrary("md", markdownLibrary);
 
