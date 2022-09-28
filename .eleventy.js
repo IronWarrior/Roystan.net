@@ -1,5 +1,5 @@
 const eleventySass = require("eleventy-sass");
-const { DateTime } = require("luxon");
+const DateTime = require("luxon");
 const markdownIt = require("markdown-it");
 const customHighlight = require('./custom-highlight');
 
