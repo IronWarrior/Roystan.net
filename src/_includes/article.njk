@@ -1,7 +1,7 @@
 ---
 layout: layout.njk
 ---
-
+{% import "macros.njk" as macro %}
 <main class="tutorial">
 	<div class="tutorial-title clearfix">
 		<h1>{{ name }}</h1>
@@ -12,6 +12,8 @@ layout: layout.njk
 			<div class="tutorial-stopwatch"></div>
 			<h4>{{ duration }} minutes to complete</h4>
 		</div>
-			{{ content | safe }}
+			{{ content | safe }}			
+		<h2>Leave me a message</h2>
+		<p>You can contact me about this article at {{ macro.email() }}. Sometimes I receive a lot of messages, but I'll try and get back to you as soon as I can!</p>
 	</div>
 </main>

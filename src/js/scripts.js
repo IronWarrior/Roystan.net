@@ -102,3 +102,13 @@ $(".toggle-gif").click(function()
 {
     $(this).toggleClass("playing");
 });
+
+document.getElementsByClassName("email")[0].addEventListener("click", () =>
+{
+	navigator.clipboard.writeText("roystanhonks@gmail.com");
+
+	const alert = document.getElementsByClassName("clipboard-alert")[0];
+	alert.classList.add("opaque");
+
+	setTimeout(() => alert.classList.remove("opaque"), 500);
+});

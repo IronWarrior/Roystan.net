@@ -1,4 +1,4 @@
-{% macro repo (url) -%}
+﻿{% macro repo (url) -%}
 <a class="button" href="{{ url }}" target="_blank">
 	<span>View source</span>
 	<span class="button-type">GitHub repository</span>
@@ -31,4 +31,9 @@
 <div class="project-info clearfix">
 	<div class="project-info-note"><strong>The completed project</strong> is provided at the end of the article. Note that it also contains a large amount of comments in the created shader file to aid understanding.</div>
 </div>
+{% endmacro %}
+
+{% macro email() %}
+<span class="email-clipboard"><span class="clipboard-alert">Copied to clipboard</span><span class="email"><span>roystanhonks@gmail.com</span><span> 📋</span></span></span>
+<span class="email email-mailto"><span><a href="mailto:roystanhonks@gmail.com">roystanhonks@gmail.com</a></span><span> 📧</span></span>
 {% endmacro %}

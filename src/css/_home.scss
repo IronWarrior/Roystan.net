@@ -459,3 +459,68 @@ video
 {
 	background-color:#333333;
 }
+
+.email {
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	background-color: #eeeeee;
+	padding: 0.2em 0.4em;
+	border: 2px dashed #bbbbbb;
+	border-radius: 4px;
+	font-weight: 600;	
+}
+
+.email:hover {
+	background-color: #dddddd;
+}
+
+.email:active {
+	background-color: #cccccc;
+}
+
+.email > span::selection {
+	background-color: #ffb91a;
+}
+
+.email > span:last-child {
+	user-select: none;
+}
+
+.email-clipboard {
+	display: none;
+}
+
+.email-clipboard > span:last-child {
+	cursor: pointer;
+}
+
+.email-mailto {
+	display:inline;
+}
+
+.clipboard-alert {
+	position: absolute;
+	transform: translate(0, -100%);
+	user-select: none;
+	background: white;
+	padding: 0.05em 0.6em;
+	border-radius: 8px;
+	font-size: 0.9em;
+	filter: drop-shadow(0.2em 0.2em 8px #00000066);
+	opacity: 0;
+	transition: opacity linear 0.6s;
+}
+
+.opaque {
+	opacity: 1;
+	transition: opacity linear 0s;
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.email-clipboard {
+		display: inline;
+	}
+
+	.email-mailto {
+		display: none;
+	}
+}
