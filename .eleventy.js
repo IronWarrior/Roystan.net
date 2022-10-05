@@ -13,6 +13,7 @@ module.exports = function (eleventyConfig)
 	eleventyConfig.addPassthroughCopy("src/android-chrome-192x192.png");
 	eleventyConfig.addPassthroughCopy("src/favicon*");
 	eleventyConfig.addPassthroughCopy("src/manifest.json");
+	eleventyConfig.addPassthroughCopy("src/robots.txt");
 
 	eleventyConfig.addFilter("date", dateObj =>
 	{

@@ -1,0 +1,4 @@
+Sitemap: https://roystan.net/sitemap.xml
+
+User-agent: *
+Disallow:
