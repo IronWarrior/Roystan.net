@@ -98,7 +98,7 @@ nav > #davigo {
 
 main
 {
-	max-width: 1280px;
+	max-width: 760px;
 	margin: 0 auto;
 	display: block;
 }
@@ -171,16 +171,11 @@ footer
 	margin-top: 2em;
 	margin-bottom: 2.5em;
 	max-width: 920px;
-	padding: 0 1.5em;
-	text-align: center;	
+	padding: 0 1.5em;	
 }
 
 .davigo-preview {
 	position: relative;
-	margin: 40px auto 45px;
-	max-width: 500px;
-	border-radius: 4px;
-	overflow: hidden;
 }
 
 .social-links
@@ -190,152 +185,72 @@ footer
 	text-align: center;
 }
 
-.social-link
-{
-	width: 60px;
-	height: 60px;
-	background-size: cover;
+.social-link {
+	width: 35px;
+	height: 35px;
 	display: inline-block;
 	margin: 0 6px;
-	-webkit-touch-callout:none;
-	-webkit-user-select:none;
-	-khtml-user-select:none;
-	-moz-user-select:none;
-	-ms-user-select:none;
-	user-select:none;
-	-webkit-tap-highlight-color:rgba(0,0,0,0);
+	user-select: none;
+	position: relative;
+	background-size: 100% auto;
+	background-repeat: no-repeat;
+	background-position: center;
+	filter: brightness(0.8);
 }
 
 @media (min-width: 768px)
 {
 	.social-link
 	{
-		width: 70px;
-		height: 70px;
-		margin: 0 10px;
+		margin: 0 12px;
 	}
 }
 
-#social-youtube
-{
-	background-image: url("/media/portfolio/youtube-logo-spritesheet.png");
-}
-	
-#social-youtube:hover
-{
-	animation: youtube 0.25s steps(16) forwards;
+#social-youtube {	
+	background-image: url("/media/socials/youtube.svg");
 }
 
-@keyframes youtube
-{
-	to { background-position: -1600% 0px; }
+#social-youtube:hover {
+	filter: brightness(0) saturate(100%) invert(12%) sepia(98%) saturate(7190%) hue-rotate(1deg) brightness(101%) contrast(104%);
 }
 
-#social-linkedin
-{
-	background-image: url("/media/portfolio/linkedin-logo-spritesheet.png");
+#social-twitter {
+	background-image: url("/media/socials/twitter.svg");
 }
 
-#social-linkedin:hover
-{
-	animation: linkedin 0.25s steps(8) forwards;
+#social-twitter:hover {
+	filter: brightness(0) saturate(100%) invert(48%) sepia(86%) saturate(1772%) hue-rotate(176deg) brightness(100%) contrast(90%);
 }
 
-@keyframes linkedin
-{
-	to { background-position: -800% 0px; }
+#social-twitch {
+	background-image: url("/media/socials/twitch.svg");
 }
 
-#social-reddit
-{
-	background-image: url("/media/portfolio/reddit-logo-spritesheet.png");
+#social-twitch:hover {
+	filter: brightness(0) saturate(100%) invert(37%) sepia(46%) saturate(7458%) hue-rotate(250deg) brightness(104%) contrast(102%);
 }
 
-#social-reddit:hover
-{
-	animation: reddit 0.25s steps(9) forwards;
+#social-patreon {
+	background-image: url("/media/socials/patreon.svg");
 }
 
-@keyframes reddit
-{
-	to { background-position: -900% 0px; }
+#social-patreon:hover {
+	filter: brightness(0) saturate(100%) invert(56%) sepia(12%) saturate(6015%) hue-rotate(326deg) brightness(98%) contrast(99%);
 }
 
-
-#social-twitter
-{
-	background-image: url("/media/portfolio/twitter-logo-spritesheet.png");
-}
-
-#social-twitter:hover
-{
-	animation: twitter 0.25s steps(6) forwards;
-}
-
-@keyframes twitter
-{
-	to { background-position: -600% 0px; }
-}
-
-#social-unity
-{
-	background-image: url("/media/portfolio/unity-logo-spritesheet.png");
-}
-
-#social-unity:hover
-{
-	animation: unity 0.3s steps(6) forwards;
-}
-
-@keyframes unity
-{
-	to { background-position: -600% 0px; }
-}
-
-#social-email
-{
-	background-image: url("/media/portfolio/email-spritesheet.png");
-}
-
-#social-email:hover
-{
-	animation: email 0.2s steps(4) forwards;
-}
-
-@keyframes email
-{
-	to { background-position: -400% 0px; }
-}
-
-#social-cv
-{
-	background-image: url("/media/portfolio/cv-logo-spritesheet.png");
-}
-
-#social-cv:hover
-{
-	animation: cv 0.4s steps(7) forwards;
-}
-
-@keyframes cv
-{
-	to { background-position: -700% 0px; }
-}
-
-video
-{
+video {
 	width: 100%;
 	height: 100%;
 	background-size: contain;
 	display: block;
 	cursor: auto;
-	-webkit-touch-callout:none;
-	-webkit-user-select:none;
-	-khtml-user-select:none;
-	-moz-user-select:none;
-	-ms-user-select:none;
-	user-select:none;
-	-webkit-tap-highlight-color:rgba(0,0,0,0);
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	-webkit-tap-highlight-color: rgba(0,0,0,0);
 }
 
 .controls
@@ -438,7 +353,6 @@ video
 	}
 }
 
-
 .gallery-row
 {
 	width: 100%;
@@ -447,6 +361,7 @@ video
 .patreon-home
 {
 	margin: 0 auto;
+	text-align: center;
 }
 
 .button.patreon
@@ -524,3 +439,31 @@ video
 		display: none;
 	}
 }
+
+#twitch-embed {
+	padding-top: calc(56.25%);
+	position: relative;
+	height: 0;
+	width: 100%;
+}
+
+#twitch-embed > iframe {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	top: 0;
+}
+
+.home-media {
+	border-radius: 8px;
+	overflow: hidden;
+	width: 100%;
+	margin: 40px auto 45px;
+}
+
+@media (min-width: 768px) {
+	.home-media {
+		width: 90%;
+	}
+}
+

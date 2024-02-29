@@ -38,3 +38,15 @@ The source code for this site is available below.
 {{ macro.repo('https://github.com/IronWarrior/Roystan.net')}}
 {% endmd %}
 </main>
+
+<script>
+document.getElementsByClassName("email")[0].addEventListener("click", () =>
+{
+	navigator.clipboard.writeText("roystanhonks@gmail.com");
+
+	const alert = document.getElementsByClassName("clipboard-alert")[0];
+	alert.classList.add("opaque");
+
+	setTimeout(() => alert.classList.remove("opaque"), 500);
+});
+</script>

@@ -7,20 +7,29 @@ ogTitle: Unity Tutorials and Portfolio at Roystan
 <header>
 	<main>
 		<div class="title-logo"></div>
-		<div class="social-links clearfix">
+		<div class="social-links">
 			<a class="social-link" id="social-twitter" target="_blank" href="https://twitter.com/roystanhonks"></a>
-			<a class="social-link" id="social-youtube" target="_blank" href="https://www.youtube.com/channel/UCMt894M7mGO0e6ST1cYUGVQ"></a>							
+			<a class="social-link" id="social-youtube" target="_blank" href="https://www.youtube.com/channel/UCMt894M7mGO0e6ST1cYUGVQ"></a>
+			<a class="social-link" id="social-twitch" target="_blank" href="https://www.twitch.tv/roystanhonks"></a>		
+			<a class="social-link" id="social-patreon" target="_blank" href="https://www.patreon.com/roystan"></a>					
 		</div>
 		<div class="title-text">
-			<p>Hi! My name is Roystan. I work as a programmer, designer and educator. My current project is <a href="https://www.davigogame.com/" target="_blank">DAVIGO, an asymmetrical VR vs. PC game</a>. It looks like this.</p>
-			<div class="davigo-preview">
-				<div class="controls"></div>
-				<div class="loading"></div>
-				<a class="video-link" href="https://www.youtube.com/watch?v=ZmeFyniZrZU" target="_blank"></a>
-				<video poster="{{ 'media/portfolio/WebsiteBGPoster.png' | url }}" muted loop preload="metadata">			
-						<source src="{{ '/media/portfolio/WebsiteBGRedux.webm' | url }}" type="video/webm" />
-						<source src="{{ '/media/portfolio/WebsiteBGRedux.mp4' | url}}" type="video/mp4" />
-				</video>
+			<p id="opening-text">Hi! My name is Roystan. I work as a programmer, designer and educator. I also stream sometimes on Twitch, so if I'm online feel free to drop by to say hi.</p>
+			<div class="home-media" id="twitch-home-media" style="display:none">
+				<div id="twitch-embed">
+				</div>
+			</div>
+			<p>My most recent project is <a href="https://www.davigogame.com/" target="_blank">DAVIGO, an asymmetrical VR vs. PC game</a> in Early Access. You can buy it on <a href="https://store.steampowered.com/app/1116540/DAVIGO_VR_vs_PC/" target="_blank">Steam</a> and <a href="https://www.meta.com/experiences/6244027602378363/" target="_blank">AppLab</a>! It looks like this.</p>
+			<div class="home-media">
+				<div class="davigo-preview">
+					<div class="controls"></div>
+					<div class="loading"></div>
+					<a class="video-link" href="https://www.youtube.com/watch?v=ZmeFyniZrZU" target="_blank"></a>
+					<video poster="{{ 'media/portfolio/WebsiteBGPoster.png' | url }}" muted loop preload="metadata">			
+							<source src="{{ '/media/portfolio/WebsiteBGRedux.webm' | url }}" type="video/webm" />
+							<source src="{{ '/media/portfolio/WebsiteBGRedux.mp4' | url}}" type="video/mp4" />
+					</video>
+				</div>
 			</div>
 			<p>I also write <a href="/articles/">free and open-source tutorials</a> about game development using Unity. If you enjoy them, I have a <a href="https://www.patreon.com/roystan" target="_blank">Patreon</a>  you can support.</p>
 			<div class="patreon-home">
@@ -30,4 +39,20 @@ ogTitle: Unity Tutorials and Portfolio at Roystan
 			</div>
 		</div>
 	</main>
+	<script src= "https://player.twitch.tv/js/embed/v1.js"></script>
+	<script type="text/javascript">
+	
+	var options = {
+		width: "100%",
+		height: "100%",
+		channel: "grubby",
+	};
+	
+	var player = new Twitch.Player("twitch-embed", options);
+	
+	player.addEventListener(Twitch.Player.ONLINE, (e) => { 
+		document.getElementById("twitch-home-media").style.display = "block";
+		document.getElementById("opening-text").innerText = "Hi! My name is Roystan. I work as a programmer, designer and educator. I also stream sometimes, which it looks like I'm doing right now, so come say hi!"
+	});
+	</script>
 </header>
