@@ -261,20 +261,10 @@ pre .removed
 	background:rgba(255,12,12,0.25);
 }
 
-.video-gfycat
+.video-header
 {
 	position:relative; 
-	padding-bottom: 56.25%; 
 	overflow:hidden; 	
-}
-
-.video-gfycat > iframe
-{
-	position:absolute;
-	top:0;
-	left:0; 
-	width:100%; 
-	height: calc(100% + 44px);
 }
 
 .figure-header
