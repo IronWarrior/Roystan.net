@@ -238,6 +238,18 @@ footer
 	filter: brightness(0) saturate(100%) invert(56%) sepia(12%) saturate(6015%) hue-rotate(326deg) brightness(98%) contrast(99%);
 }
 
+// Special filters for the special boy.
+#social-instagram {
+	filter: brightness(1) grayscale(1);
+	opacity: 0.35;
+	background-image: url("/media/socials/instagram.svg");
+}
+
+#social-instagram:hover {
+	opacity: 1;
+	filter: none;
+}
+
 video {
 	width: 100%;
 	height: 100%;
